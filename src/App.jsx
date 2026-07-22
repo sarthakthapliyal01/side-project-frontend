@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
 import AuthPage from "./components/AuthPage";
+import OrganizationPage from "./Pages/OrganizationPage";
 
 function App() {
   const [message, setMessage] = useState("");
+  const [organizationCreated, setOrganizationCreated] = useState(false);
 
   const {
     isAuthenticated,
@@ -22,6 +24,8 @@ function App() {
   useEffect(() => {
   if (!isAuthenticated || !user) return;
 
+  const companyName = localStorage.getItem("companyName");
+
   fetch("http://127.0.0.1:8000/users", {
     method: "POST",
     headers: {
@@ -32,18 +36,31 @@ function App() {
       email: user.email,
       picture: user.picture,
       auth0_id: user.sub,
+      companyName: companyName,
     }),
   });
 }, [isAuthenticated, user]);
 
 
   if (isLoading) {
-    return <h2>Loading...</h2>;
-  }
+  return <h2>Loading...</h2>;
+}
 
-  if (!isAuthenticated) {
-    return <AuthPage />;
-  }
+if (!organizationCreated) {
+  return (
+    <OrganizationPage
+      onOrganizationCreated={() =>
+        setOrganizationCreated(true)
+      }
+    />
+  );
+}
+
+if (!isAuthenticated) {
+  return <AuthPage />;
+}
+
+const companyName = localStorage.getItem("companyName");
 
   return (
     <div
@@ -51,7 +68,7 @@ function App() {
         padding: "2rem",
       }}
     >
-      <h1>React + FastAPI</h1>
+      <h1>Organization: {companyName}</h1>
 
       <p>{message}</p>
 

@@ -1,17 +1,30 @@
 import { useAuth0 } from "@auth0/auth0-react";
+import "./AuthPage.css";
 
 function AuthPage() {
   const { loginWithRedirect } = useAuth0();
 
   return (
-    <div>
-      <h1>Authencation Page</h1>
+    <div className="auth-container">
+      <div className="auth-card">
+        <h1 className="auth-title">Welcome Back</h1>
 
-      <p>Login or create an account with Google</p>
+        <p className="auth-subtitle">
+          Sign in to continue to your workspace or create a new account using
+          Google.
+        </p>
 
-      <button onClick={() => loginWithRedirect()}>
-        Continue with Google
-      </button>
+        <button
+          className="auth-button"
+          onClick={() => loginWithRedirect()}
+        >
+          Continue with Google
+        </button>
+
+        <p className="auth-footer">
+          Secure authentication powered by Auth0
+        </p>
+      </div>
     </div>
   );
 }
