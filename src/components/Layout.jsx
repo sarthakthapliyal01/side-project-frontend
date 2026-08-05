@@ -8,9 +8,10 @@ function Layout({
   setSidebarOpen,
   children,
   user,
+  logout,
 }) {
   return (
-    <div className="h-screen bg-slate-100 p-2 sm:p-4 font-sans">
+    <div className="h-screen bg-black p-2 sm:p-4 font-sans">
       <div className="flex h-full gap-2 sm:gap-4 overflow-hidden">
         <Sidebar
           currentPage={currentPage}
@@ -19,17 +20,13 @@ function Layout({
           setSidebarOpen={setSidebarOpen}
         />
 
-        <div className="flex-1 flex flex-col bg-white rounded-2xl sm:rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-black rounded-2xl sm:rounded-3xl shadow-sm border border-white/5 overflow-hidden">
           <Topbar
             user={user}
             companyName={localStorage.getItem("companyName") || "Organization"}
+            logout={logout}
           />
-
-          {/* 
-            Removed the hardcoded p-8 here so page components 
-            (like Home.jsx) can control their own padding and edge-to-edge designs.
-          */}
-          <main className="flex-1 overflow-y-auto bg-slate-50/50">
+          <main className="flex-1 overflow-hidden bg-black">
             {children}
           </main>
         </div>
