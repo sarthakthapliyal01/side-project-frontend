@@ -11,8 +11,8 @@ function Layout({
   logout,
 }) {
   return (
-    <div className="h-screen bg-black p-2 sm:p-4 font-sans">
-      <div className="flex h-full gap-2 sm:gap-4 overflow-hidden">
+    <div className="h-screen bg-transparent p-2 sm:p-4 font-sans relative overflow-hidden">
+      <div className="flex h-full gap-2 sm:gap-4 overflow-hidden relative z-10">
         <Sidebar
           currentPage={currentPage}
           setCurrentPage={setCurrentPage}
@@ -20,13 +20,14 @@ function Layout({
           setSidebarOpen={setSidebarOpen}
         />
 
-        <div className="flex-1 flex flex-col bg-black rounded-2xl sm:rounded-3xl shadow-sm border border-white/5 overflow-hidden">
+        <div className="flex-1 flex flex-col bg-[#0c0c0e]/90 backdrop-blur-xl rounded-3xl shadow-2xl border border-[#1e1e24] overflow-hidden">
           <Topbar
             user={user}
             companyName={localStorage.getItem("companyName") || "Organization"}
             logout={logout}
+            currentPage={currentPage}
           />
-          <main className="flex-1 overflow-hidden bg-black">
+          <main className={`flex-1 bg-transparent ${currentPage === "qmetry360" || currentPage === "standup" ? "overflow-hidden" : "overflow-y-auto"}`}>
             {children}
           </main>
         </div>
@@ -35,4 +36,4 @@ function Layout({
   );
 }
 
-export default Layout;
+export default Layout;

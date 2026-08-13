@@ -11,8 +11,40 @@ body,
 #root {
   width: 100%;
   min-height: 100vh;
+  background: radial-gradient(circle at 50% 0%, #141418 0%, #09090b 60%, #000000 100%);
+  background-attachment: fixed;
+  color: #ffffff;
 }
 
 body {
-  font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  overflow-x: hidden;
+  background: radial-gradient(circle at 50% 0%, #141418 0%, #09090b 60%, #000000 100%);
+  background-attachment: fixed;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #141414;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2e2e2e;
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #525252;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
 }

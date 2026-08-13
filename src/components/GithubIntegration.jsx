@@ -6,11 +6,11 @@ import { CheckCircle, XCircle, Loader2 } from "lucide-react";
 function GitHubIntegration({ companyName }) {
   const [githubOwner, setGithubOwner] = useState("");
   const [githubToken, setGithubToken] = useState("");
-
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");
 
+  //GitHub Connection 
   const testConnection = async () => {
     setLoading(true);
     setMessage("");
@@ -18,10 +18,7 @@ function GitHubIntegration({ companyName }) {
     try {
       const response = await axios.post(
         "http://localhost:8000/github/test-connection",
-        {
-          github_owner: githubOwner,
-          github_token: githubToken,
-        }
+        { github_owner: githubOwner, github_token: githubToken }
       );
 
       if (response.data.connected) {
@@ -30,110 +27,81 @@ function GitHubIntegration({ companyName }) {
       }
     } catch (error) {
       setConnected(false);
-      setMessage(
-        error.response?.data?.detail || "Unable to connect to GitHub."
-      );
+      setMessage(error.response?.data?.detail || "Unable to connect to GitHub.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const saveConnection = async () => {
-  const requestData = {
-    companyName,
-    github_owner: githubOwner,
-    github_token: githubToken,
+    try {
+      const response = await axios.post("http://localhost:8000/github/save-connection", {
+        companyName,
+        github_owner: githubOwner,
+        github_token: githubToken,
+      });
+
+      alert(response.data.message);
+    } catch (error) {
+      alert(error.response?.data?.detail || "Failed to save GitHub connection.");
+    }
   };
 
-  console.log("Sending data:", requestData);
-
-  try {
-    const response = await axios.post(
-      "http://localhost:8000/github/save-connection",
-      requestData
-    );
-
-    console.log("Response:", response.data);
-    alert(response.data.message);
-
-  } catch (error) {
-    console.error("Error:", error.response?.data);
-
-    alert(
-      JSON.stringify(error.response?.data, null, 2) ||
-      "Failed to save GitHub connection."
-    );
-  }
-};
-
   return (
-    <div className="max-w-2xl mx-auto bg-neutral-900 rounded-2xl shadow-md border border-white/10 p-8">
+    <div className="max-w-2xl mx-auto bg-[#1e1e1e] rounded-2xl shadow-2xl border border-[#2a2a2a] p-6 md:p-8 font-sans">
       <div className="flex items-center gap-3 mb-6">
-        <FaGithub className="w-8 h-8 text-white" />
+        <div className="p-3 rounded-xl bg-[#262626] border border-[#333333] text-white text-2xl shadow-sm">
+          <FaGithub />
+        </div>
         <div>
-          <h2 className="text-2xl font-bold text-white">
-            GitHub Integration
-          </h2>
-          <p className="text-slate-400 text-sm">
+          <h2 className="text-xl font-bold text-white tracking-tight">GitHub Integration</h2>
+          <p className="text-[#a1a1a1] text-xs mt-0.5">
             Connect your GitHub account to sync repositories and pull requests.
           </p>
         </div>
       </div>
 
       <div className="space-y-5">
-
         <div>
-          <label className="block text-sm font-medium text-slate-200 mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-white mb-2">
             GitHub Owner
           </label>
-
           <input
             type="text"
             value={githubOwner}
             onChange={(e) => setGithubOwner(e.target.value)}
             placeholder="e.g. microsoft"
-            className="w-full rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-slate-500 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full rounded-xl border border-[#333333] bg-[#262626] text-white placeholder:text-[#777777] px-4 py-3 focus:outline-none focus:border-white text-sm transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-slate-200 mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-white mb-2">
             Personal Access Token
           </label>
-
           <input
             type="password"
             value={githubToken}
             onChange={(e) => setGithubToken(e.target.value)}
             placeholder="ghp_xxxxxxxxxxxxxxxxx"
-            className="w-full rounded-lg border border-white/10 bg-white/5 text-white placeholder:text-slate-500 px-4 py-3 focus:outline-none focus:ring-2 focus:ring-white/30"
+            className="w-full rounded-xl border border-[#333333] bg-[#262626] text-white placeholder:text-[#777777] px-4 py-3 focus:outline-none focus:border-white text-sm transition-all"
           />
         </div>
 
         {message && (
-          <div
-            className={`flex items-center gap-2 rounded-lg px-4 py-3 border ${
-              connected
-                ? "bg-green-500/10 text-green-400 border-green-500/20"
-                : "bg-red-500/10 text-red-400 border-red-500/20"
-            }`}
-          >
-            {connected ? (
-              <CheckCircle size={18} />
-            ) : (
-              <XCircle size={18} />
-            )}
-
+          <div className={`flex items-center gap-2 rounded-xl px-4 py-3 border text-sm font-medium ${
+            connected ? "bg-white/10 text-white border-white/20" : "bg-red-500/10 text-red-400 border-red-500/30"
+          }`}>
+            {connected ? <CheckCircle size={18} /> : <XCircle size={18} />}
             {message}
           </div>
         )}
 
         <div className="flex gap-4 pt-2">
-
           <button
             onClick={testConnection}
             disabled={loading}
-            className="bg-white hover:bg-slate-200 text-black px-5 py-3 rounded-lg font-medium transition flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            className="bg-white hover:bg-neutral-200 text-black px-6 py-3 rounded-full font-bold text-sm transition-all flex items-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
           >
             {loading ? (
               <>
@@ -148,15 +116,14 @@ function GitHubIntegration({ companyName }) {
           <button
             onClick={saveConnection}
             disabled={!connected}
-            className={`px-5 py-3 rounded-lg font-medium transition ${
+            className={`px-6 py-3 rounded-full font-bold text-sm transition-all ${
               connected
-                ? "bg-green-500/90 hover:bg-green-500 text-black"
-                : "bg-white/5 text-slate-500 cursor-not-allowed border border-white/10"
+                ? "bg-white hover:bg-neutral-200 text-black shadow-md active:scale-95 cursor-pointer"
+                : "bg-[#262626] text-[#777777] cursor-not-allowed border border-[#333333]"
             }`}
           >
             Save Connection
           </button>
-
         </div>
       </div>
     </div>

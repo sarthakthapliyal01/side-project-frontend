@@ -2,211 +2,395 @@ import { useEffect, useState } from "react";
 import {
   Bell,
   ChevronDown,
-  Building2,
-  LogOut,
   RefreshCw,
+  Search,
+  Sun,
+  LayoutGrid,
+  LogOut
 } from "lucide-react";
 
-function formatLastSynced(lastSynced, now) {
-  if (!lastSynced) return "Never synced";
-
-  const diffSec = Math.floor((now - lastSynced) / 1000);
-
-  if (diffSec < 5) return "Synced just now";
-  if (diffSec < 60) return `Synced ${diffSec}s ago`;
-
-  const diffMin = Math.floor(diffSec / 60);
-  if (diffMin < 60) return `Synced ${diffMin}m ago`;
-
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `Synced ${diffHr}h ago`;
-
-  return `Synced on ${lastSynced.toLocaleDateString()}`;
+function formatLastSynced(lastSyncedDate) {
+  if (!lastSyncedDate) return "Never synced";
+  return `Last synced: ${lastSyncedDate.toLocaleDateString()} ${lastSyncedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-function Topbar({ user, companyName, logout }) {
+function Topbar({ user, companyName, logout, currentPage }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState(() => {
     const stored = localStorage.getItem("lastSyncedBoards");
-    return stored ? new Date(stored) : null;
+    return stored ? new Date(stored) : new Date();
   });
-  const [now, setNow] = useState(new Date());
+
+  const [projects, setProjects] = useState([]);
+  const [selectedBoard, setSelectedBoard] = useState("");
+  const [sprints, setSprints] = useState([]);
+  const [selectedSprintId, setSelectedSprintId] = useState("");
+  const [activeSprint, setActiveSprint] = useState(null);
+
+  const [selectedRepo, setSelectedRepo] = useState("All repositories");
+  const [selectedFilterType, setSelectedFilterType] = useState("Sprint");
+  const [selectedDev, setSelectedDev] = useState("Select Developer");
+
+  const compName = companyName || localStorage.getItem("companyName") || "Organization";
+
+  // --- Project Data ---
+  const fetchProjects = () => {
+    if (!compName) return;
+
+    fetch(`http://127.0.0.1:8000/jira/selected-projects/${compName}`)
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        const fetchedProjects = data.projects || data;
+        if (Array.isArray(fetchedProjects)) {
+          setProjects(fetchedProjects);
+          if (fetchedProjects.length > 0) {
+            setSelectedBoard((prev) => prev || String(fetchedProjects[0].projectId));
+          } else {
+            setSelectedBoard("");
+          }
+        }
+      })
+      .catch(() => { });
+  };
 
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
-  }, []);
+    fetchProjects();
 
-  const handleSync = async () => {
-    const storedCompanyName = localStorage.getItem("companyName");
+    const handleUpdate = () => fetchProjects();
+    window.addEventListener("jiraProjectsUpdated", handleUpdate);
+    return () => window.removeEventListener("jiraProjectsUpdated", handleUpdate);
+  }, [compName]);
 
-    if (!storedCompanyName) {
-      alert("No company selected — companyName is missing from localStorage.");
-      return;
+
+  // --- Sprint Data ---
+  useEffect(() => {
+    if (!compName || !selectedBoard) return;
+
+    // First try DB sprints for immediate loading
+    fetch(`http://127.0.0.1:8000/jira/db-sprints/${compName}?board_id=${selectedBoard}`)
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data?.sprints?.length > 0) {
+          setSprints(data.sprints);
+        } else {
+          // Fallback to Jira API endpoint
+          fetch(`http://127.0.0.1:8000/jira/sprints/${compName}?project_id=${selectedBoard}`)
+            .then((res) => res.ok && res.json())
+            .then((apiData) => {
+              if (apiData?.sprints?.length > 0) {
+                setSprints(apiData.sprints);
+              } else {
+                setSprints([]);
+              }
+            })
+            .catch(() => setSprints([]));
+        }
+      })
+      .catch(() => setSprints([]));
+  }, [compName, selectedBoard]);
+
+  // Dynamic Sprint Filtering based on selectedFilterType
+  const filteredSprints = sprints.filter((s) => {
+    if (selectedFilterType === "Active") return s.state === "active";
+    if (selectedFilterType === "Closed") return s.state === "closed";
+    if (selectedFilterType === "Future") return s.state === "future";
+    return true; // "Sprint", "Created", "Release"
+  });
+
+  useEffect(() => {
+    if (filteredSprints.length > 0) {
+      const savedSprint = localStorage.getItem("selectedSprint");
+      let initialSprint = null;
+
+      if (savedSprint) {
+        try {
+          const parsed = JSON.parse(savedSprint);
+          initialSprint = filteredSprints.find(
+            (s) => String(s.sprintId || s.id || s.name) === String(parsed?.sprintId || parsed?.id || parsed?.name)
+          );
+        } catch {}
+      }
+
+      if (!initialSprint) {
+        initialSprint = filteredSprints.find((s) => s.state === "active") || filteredSprints[0];
+      }
+
+      const sprintIdStr = String(initialSprint.sprintId || initialSprint.id || initialSprint.name);
+      setSelectedSprintId(sprintIdStr);
+      setActiveSprint(initialSprint);
+      localStorage.setItem("selectedSprint", JSON.stringify(initialSprint));
+      window.dispatchEvent(new CustomEvent("sprintSelected", { detail: initialSprint }));
+    } else {
+      setSelectedSprintId("");
+      setActiveSprint(null);
+      localStorage.removeItem("selectedSprint");
+      window.dispatchEvent(new CustomEvent("sprintSelected", { detail: null }));
     }
+  }, [selectedFilterType, sprints]);
+
+  const handleSprintSelect = (sprintId) => {
+    setSelectedSprintId(sprintId);
+    const found = sprints.find((s) => String(s.sprintId || s.id || s.name) === String(sprintId));
+    setActiveSprint(found || null);
+    if (found) {
+      localStorage.setItem("selectedSprint", JSON.stringify(found));
+    } else {
+      localStorage.removeItem("selectedSprint");
+    }
+    window.dispatchEvent(new CustomEvent("sprintSelected", { detail: found || null }));
+  };
+
+
+  // --- Board Sync Action ---
+  const handleSync = async () => {
+    if (!compName) return;
 
     setSyncing(true);
-
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/jira/sync-boards/${storedCompanyName}`,
+        `http://127.0.0.1:8000/jira/sync-boards/${compName}`,
         { method: "POST" }
       );
-
-      let data;
-      try {
-        data = await response.json();
-      } catch {
-        data = null;
+      if (response.ok) {
+        const syncedAt = new Date();
+        setLastSynced(syncedAt);
+        localStorage.setItem("lastSyncedBoards", syncedAt.toISOString());
+        window.dispatchEvent(new CustomEvent("jiraProjectsUpdated"));
       }
-
-      if (!response.ok) {
-        console.error("Sync failed:", response.status, data);
-        alert(data?.message || `Sync failed (status ${response.status})`);
-        return;
-      }
-
-      const syncedAt = new Date();
-      setLastSynced(syncedAt);
-      localStorage.setItem("lastSyncedBoards", syncedAt.toISOString());
-      alert(data?.message || "Boards synced successfully");
-    } catch (error) {
-      console.error("Sync request error:", error);
-      alert("Failed to sync boards — check your connection or the server.");
+    } catch (err) {
+      console.error("Sync error:", err);
     } finally {
       setSyncing(false);
     }
   };
 
+  const formatDateStr = (dateVal) => {
+    if (!dateVal) return "N/A";
+    try {
+      return new Date(dateVal).toLocaleDateString("en-GB");
+    } catch {
+      return String(dateVal);
+    }
+  };
+
   return (
-    <header className="h-16 lg:h-20 bg-black border-b border-white/5 px-4 lg:px-12 shrink-0">
-      <div className="h-full flex items-center justify-between">
+    <header className="bg-[#0c0c0e]/95 backdrop-blur-xl border-b border-[#1e1e24] flex flex-col shrink-0 font-sans select-none">
+      {/* Top Navbar */}
+      <div className="h-18 lg:h-22 px-6 md:px-10 flex items-center justify-between gap-8 border-b border-[#1e1e24]">
+        <div className="flex items-center gap-10">
+          <div className="flex flex-col">
+            <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight leading-none">
+              {currentPage === "standup" ? "Standup" : "QMetry360"}
+            </h1>
+            <span className="text-xs font-semibold text-[#888888] tracking-wider leading-tight mt-1.5">
+              Quality Quantified
+            </span>
+          </div>
 
-        {/* Organization */}
-        <div className="flex items-center">
-          <div className="flex items-center gap-5 px-7 py-3.5 rounded-xl bg-white/5 border border-white/10 shadow-sm min-w-[260px] lg:min-w-[300px]">
-            <div className="bg-white p-2 rounded-lg shadow-sm">
-              <Building2 size={18} className="text-black" />
-            </div>
-
-            <div className="pr-6">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-slate-500 leading-tight">
-                Organization
-              </p>
-
-              <p className="text-base font-bold text-white leading-tight mt-0.5">
-                {companyName || "Lumen Robotics"}
-              </p>
-            </div>
+          <div className="hidden sm:flex items-center gap-3 bg-[#141418] border border-[#24242c] focus-within:border-white/40 rounded-full px-5 py-2.5 w-64 md:w-80 text-sm text-[#a1a1a1] transition shadow-inner">
+            <Search size={18} className="text-[#777777] shrink-0" />
+            <input
+              type="text"
+              placeholder="Search..."
+              className="bg-transparent border-none outline-none text-sm text-white placeholder-[#666666] w-full"
+            />
           </div>
         </div>
 
-        {/* Right Side */}
-        <div className="flex items-center gap-4 sm:gap-6">
-
-          {/* Sync */}
-          <div className="flex items-center gap-3">
-            <span className="hidden sm:block text-xs font-medium text-slate-500 whitespace-nowrap">
-              {syncing ? "Syncing…" : formatLastSynced(lastSynced, now)}
+        <div className="flex items-center gap-4 md:gap-6">
+          <button
+            onClick={handleSync}
+            disabled={syncing}
+            className="flex items-center gap-2.5 bg-white hover:bg-neutral-200 text-black rounded-full px-5 py-2.5 text-xs md:text-sm font-bold transition cursor-pointer active:scale-95 shadow-md"
+          >
+            <RefreshCw size={16} className={syncing ? "animate-spin text-black" : "text-black"} />
+            <span className="whitespace-nowrap">
+              {syncing ? "Syncing..." : formatLastSynced(lastSynced)}
             </span>
-
-            <button
-              onClick={handleSync}
-              disabled={syncing}
-              className="group flex items-center gap-2 px-4 py-2.5 rounded-lg border border-white/15 bg-white/5 text-white text-sm font-semibold shadow-sm transition-all duration-200 hover:bg-white hover:text-black hover:border-white active:scale-95 focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-black disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white/5 disabled:hover:text-white"
-            >
-              <RefreshCw
-                size={16}
-                className={
-                  syncing
-                    ? "animate-spin"
-                    : "transition-transform duration-300 group-hover:rotate-180"
-                }
-              />
-              {syncing ? "Syncing" : "Sync Boards"}
-            </button>
-          </div>
-
-          {/* Notifications */}
-          <button className="relative w-10 h-10 rounded-full hover:bg-white/10 text-slate-400 hover:text-white transition-colors flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-neutral-900">
-            <Bell size={18} />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-red-500 ring-2 ring-neutral-900" />
           </button>
 
-          {/* User Menu */}
-          <div className="relative">
+          <button title="Toggle Theme" className="text-[#a1a1a1] hover:text-white p-2.5 rounded-full hover:bg-[#18181d] transition cursor-pointer">
+            <Sun size={20} />
+          </button>
 
+          <button title="Notifications" className="text-[#a1a1a1] hover:text-white p-2.5 rounded-full hover:bg-[#18181d] transition relative cursor-pointer">
+            <Bell size={20} />
+            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white shadow-sm" />
+          </button>
+
+          <button title="Apps" className="text-[#a1a1a1] hover:text-white p-2.5 rounded-full hover:bg-[#18181d] transition cursor-pointer">
+            <LayoutGrid size={20} />
+          </button>
+
+          <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-3 pl-3 pr-5 py-2 rounded-full border border-white/10 hover:border-white/20 hover:shadow-sm bg-white/5 transition-all focus:outline-none focus:ring-2 focus:ring-white focus:ring-offset-2 focus:ring-offset-neutral-900"
+              className="flex items-center gap-3 bg-[#141418] border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-sm text-white font-bold transition cursor-pointer shadow-sm"
             >
               {user?.picture ? (
                 <img
                   src={user.picture}
-                  alt={user.name}
-                  className="w-10 h-10 rounded-full object-cover"
+                  alt={user.name || "User"}
+                  className="w-7 h-7 rounded-full object-cover ring-1 ring-white/20"
                 />
               ) : (
-                <div className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-black text-sm font-bold shadow-inner">
+                <div className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center font-bold text-xs shadow-inner">
                   {user?.name?.charAt(0)?.toUpperCase() || "U"}
                 </div>
               )}
-
-              <div className="hidden md:block text-left max-w-[160px]">
-                <p className="font-semibold text-base text-white truncate leading-tight">
-                  {user?.name || "User"}
-                </p>
-
-                <p className="text-xs font-medium text-slate-400 truncate leading-tight mt-0.5">
-                  {user?.email || "user@qmetrix.io"}
-                </p>
-              </div>
-
-              <ChevronDown
-                size={16}
-                className={`text-slate-500 transition-transform ${
-                  menuOpen ? "rotate-180" : ""
-                }`}
-              />
+              <span className="max-w-[140px] truncate text-xs md:text-sm font-bold">
+                {user?.name || user?.email?.split("@")[0] || "User"}
+              </span>
+              <ChevronDown size={16} className="text-[#888888]" />
             </button>
 
-            {/* Dropdown */}
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-52 rounded-xl bg-neutral-900 border border-white/10 shadow-xl overflow-hidden z-50">
-
-                <div className="px-4 py-3 border-b border-white/10">
-                  <p className="text-sm font-semibold text-white truncate">
-                    {user?.name}
-                  </p>
-
-                  <p className="text-xs text-slate-400 truncate">
-                    {user?.email}
-                  </p>
+              <div className="absolute right-0 mt-3 w-60 rounded-2xl bg-[#141418] border border-[#24242c] shadow-2xl overflow-hidden z-50 p-2">
+                <div className="px-3 py-2 border-b border-[#24242c] mb-1">
+                  <p className="text-sm font-bold text-white truncate">{user?.name || "User"}</p>
+                  <p className="text-xs text-[#a1a1a1] truncate">{user?.email}</p>
                 </div>
-
                 <button
-                  onClick={() =>
-                    logout?.({
-                      logoutParams: {
-                        returnTo: window.location.origin,
-                      },
-                    })
-                  }
-                  className="w-full px-4 py-3 flex items-center gap-3 text-left text-red-400 hover:bg-white/5 transition-colors"
+                  onClick={() => logout?.({ logoutParams: { returnTo: window.location.origin } })}
+                  className="w-full px-3 py-2.5 flex items-center gap-3 text-left text-red-400 hover:bg-red-950/30 rounded-xl transition-colors text-xs font-bold cursor-pointer"
                 >
                   <LogOut size={16} />
-                  Logout
+                  <span>Logout</span>
                 </button>
-
               </div>
             )}
-
           </div>
         </div>
       </div>
+
+      {/* Filter Sub-bar */}
+      {(currentPage === "qmetry360" || currentPage === "standup") && (
+        <div className="px-6 md:px-10 py-4 bg-[#09090b]/80 flex flex-col gap-3.5 border-b border-[#1e1e24]">
+          <div className="flex flex-wrap items-center justify-between gap-6 text-sm">
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="w-36 md:w-40 flex items-center justify-between bg-[#141418] border border-[#24242c] rounded-full px-4 py-2 font-bold text-white shadow-sm text-xs md:text-sm truncate">
+                <span className="truncate">{compName}</span>
+                <ChevronDown size={14} className="text-[#888888] shrink-0 ml-1" />
+              </div>
+
+              <select
+                value={selectedBoard}
+                onChange={(e) => setSelectedBoard(e.target.value)}
+                className="w-52 md:w-60 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+              >
+                {projects.length > 0 ? (
+                  projects.map((p) => (
+                    <option key={p.projectId} value={p.projectId} className="bg-[#141418]">
+                      {p.projectName} ({p.projectKey})
+                    </option>
+                  ))
+                ) : (
+                  <option value="" className="bg-[#141418]">No Jira Projects</option>
+                )}
+              </select>
+
+              <select
+                value={selectedRepo}
+                onChange={(e) => setSelectedRepo(e.target.value)}
+                className="w-40 md:w-48 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+              >
+                <option value="All repositories">All repositories</option>
+              </select>
+
+              <select
+                value={selectedFilterType}
+                onChange={(e) => setSelectedFilterType(e.target.value)}
+                className="w-32 md:w-36 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-3.5 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm"
+              >
+                <option value="Sprint">All Sprints</option>
+                <option value="Active">Active Sprints</option>
+                <option value="Closed">Closed Sprints</option>
+                <option value="Future">Future Sprints</option>
+                <option value="Created">Created</option>
+                <option value="Release">Release</option>
+              </select>
+
+              <select
+                value={selectedSprintId}
+                onChange={(e) => handleSprintSelect(e.target.value)}
+                className="w-48 md:w-56 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+              >
+                {filteredSprints.length > 0 ? (
+                  filteredSprints.map((s) => {
+                    const sVal = String(s.sprintId || s.id || s.name);
+                    return (
+                      <option key={sVal} value={sVal} className="bg-[#141418]">
+                        {s.name} {s.state ? `(${s.state})` : ""}
+                      </option>
+                    );
+                  })
+                ) : (
+                  <option value="" className="bg-[#141418]">No Matching Sprints</option>
+                )}
+              </select>
+            </div>
+
+            <div className="flex items-center gap-4">
+              <button className="w-28 md:w-32 bg-[#141418] hover:bg-[#1a1a20] border border-[#24242c] text-white px-3.5 py-2 rounded-full text-xs md:text-sm font-bold cursor-pointer transition shadow-sm truncate">
+                Multi Project
+              </button>
+
+              <select
+                value={selectedDev}
+                onChange={(e) => setSelectedDev(e.target.value)}
+                className="w-40 md:w-48 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+              >
+                <option value="Select Developer">Select Developer</option>
+                <option value={user?.name || "Developer"}>{user?.name || "Developer"}</option>
+              </select>
+
+              <button className="w-24 md:w-28 bg-[#141418] hover:bg-[#1a1a20] border border-[#24242c] text-white px-3.5 py-2 rounded-full text-xs md:text-sm font-bold flex items-center justify-between cursor-pointer transition shadow-sm">
+                <span>Team</span>
+                <ChevronDown size={16} />
+              </button>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-8 text-xs md:text-sm font-bold pt-2.5 border-t border-[#1e1e24]">
+            <span className="text-[#999999] flex items-center gap-2">
+              Sprint Status:
+              <span className={`font-extrabold uppercase px-2.5 py-0.5 rounded-full text-xs tracking-wider ${activeSprint?.state === "active"
+                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+                  : activeSprint?.state === "closed"
+                    ? "bg-neutral-800 text-neutral-300 border border-neutral-700"
+                    : "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                }`}>
+                {activeSprint?.state || "N/A"}
+              </span>
+            </span>
+
+            <span className="text-[#999999]">
+              Sprint Start & End Date:{" "}
+              <span className="font-extrabold text-white ml-1">
+                {activeSprint?.startDate && activeSprint?.endDate
+                  ? `${formatDateStr(activeSprint.startDate)} - ${formatDateStr(activeSprint.endDate)}`
+                  : "Not Created"}
+              </span>
+            </span>
+
+            <span className="text-[#999999]">
+              Actual Sprint End Date:{" "}
+              <span className="font-extrabold text-white ml-1">
+                {activeSprint?.completeDate
+                  ? formatDateStr(activeSprint.completeDate)
+                  : activeSprint?.state === "active"
+                    ? "In Progress"
+                    : "Not Closed"}
+              </span>
+            </span>
+          </div>
+        </div>
+      )}
     </header>
   );
 }
 
 export default Topbar;
+
+

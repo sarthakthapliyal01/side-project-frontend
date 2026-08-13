@@ -20,23 +20,20 @@ function Sidebar({ currentPage, setCurrentPage }) {
   ];
 
   return (
-    <aside className="w-24 sm:w-[104px] bg-black rounded-2xl sm:rounded-3xl border border-white/5 shadow-sm flex flex-col overflow-hidden shrink-0 h-full">
-      
-      {/* Header section */}
-      <div className="h-16 lg:h-20 flex items-center justify-center border-b border-white/5 shrink-0 relative">
-        <div className="flex flex-col items-center justify-center gap-1">
-          <div className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-black font-bold shadow-sm">
-            Q
-          </div>
-          <p className="text-[9px] font-bold uppercase tracking-wider text-slate-500 leading-none">
-            QMetrix
-          </p>
+    <aside className="w-24 sm:w-28 bg-[#0c0c0e]/95 backdrop-blur-xl rounded-3xl border border-[#1e1e24] shadow-2xl flex flex-col overflow-hidden shrink-0 h-full select-none">
+      {/* Brand Header */}
+      <div className="h-20 flex flex-col items-center justify-center border-b border-[#1e1e24] shrink-0 px-2">
+        <div className="w-9 h-9 rounded-2xl bg-white flex items-center justify-center text-black font-black text-lg shadow-md">
+          Q
         </div>
+        <p className="text-[9px] font-extrabold uppercase tracking-widest text-white mt-1.5 leading-none">
+          QMetrix
+        </p>
       </div>
 
-      {/* Navigation */}
-      <div className="flex-1 py-6 overflow-y-auto overflow-x-hidden no-scrollbar">
-        <div className="flex flex-col gap-3">
+      {/* Navigation Menu */}
+      <div className="flex-1 py-4 px-2.5 overflow-y-auto overflow-x-hidden no-scrollbar">
+        <div className="flex flex-col gap-3 items-center">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const active = currentPage === item.id;
@@ -45,25 +42,20 @@ function Sidebar({ currentPage, setCurrentPage }) {
               <button
                 key={item.id}
                 onClick={() => setCurrentPage(item.id)}
-                className={`w-20 mx-auto rounded-xl flex flex-col items-center justify-center py-3 px-2 transition-all duration-200 group focus:outline-none ${
+                className={`w-full rounded-2xl flex flex-col items-center justify-center py-3 px-1.5 transition-all duration-200 group focus:outline-none cursor-pointer ${
                   active
-                    ? "bg-white text-black shadow-md"
-                    : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    ? "bg-white text-black shadow-xl shadow-white/10 scale-[1.02]"
+                    : "text-[#999999] hover:bg-[#18181d] hover:text-white"
                 }`}
               >
                 <Icon
-                  size={24}
-                  strokeWidth={active ? 2.5 : 2}
-                  className={`mb-1 ${
-                    active
-                      ? "text-black"
-                      : "text-slate-500 group-hover:text-white"
-                  } transition-colors`}
+                  size={26}
+                  strokeWidth={active ? 2.4 : 2}
+                  className={`transition-colors ${active ? "text-black" : "text-[#999999] group-hover:text-white"}`}
                 />
-
                 <span
-                  className={`text-[11px] font-medium text-center leading-tight ${
-                    active ? "text-black" : "text-slate-400"
+                  className={`text-[11px] leading-tight text-center mt-1.5 transition-colors ${
+                    active ? "text-black font-bold" : "text-[#999999] font-semibold group-hover:text-white"
                   }`}
                 >
                   {item.label}
@@ -74,20 +66,19 @@ function Sidebar({ currentPage, setCurrentPage }) {
         </div>
       </div>
 
-      {/* Footer */}
-      <div className="p-4 border-t border-white/5 shrink-0 flex flex-col items-center justify-center">
-        <div className="flex flex-col items-center gap-1">
-          <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-white text-xs font-bold shrink-0 border border-white/10">
+      {/* Version Status */}
+      <div className="py-3 px-2 border-t border-[#1e1e24] shrink-0 flex flex-col items-center justify-center">
+        <div className="flex flex-col items-center gap-0.5">
+          <div className="w-7 h-7 rounded-full bg-[#18181d] flex items-center justify-center text-white text-[11px] font-bold shrink-0 border border-[#27272e]">
             V1
           </div>
-          <p className="text-[10px] font-medium text-slate-500 leading-tight">
+          <p className="text-[9px] font-medium text-[#777777] leading-tight">
             Up to date
           </p>
         </div>
       </div>
-      
     </aside>
   );
 }
 
-export default Sidebar;
+export default Sidebar;
