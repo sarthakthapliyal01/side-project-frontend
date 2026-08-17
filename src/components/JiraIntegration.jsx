@@ -23,7 +23,7 @@ function JiraIntegration({ onClose }) {
 
     fetch(`http://127.0.0.1:8000/jira/connection/${companyName}`)
       .then((res) => (res.ok ? res.json() : { connected: false }))
-      .then((connData) => {
+      .then(async (connData) => {
         if (connData?.connected) {
           setIsConnected(true);
           setShowConnectionForm(false);
@@ -35,18 +35,22 @@ function JiraIntegration({ onClose }) {
               apiToken: connData.jira_token || "",
             }));
           }
-          return fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
+          let projRes = await fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
+          let projData = projRes.ok ? await projRes.json() : null;
+          
+          if (!projData?.projects || projData.projects.length === 0) {
+            await fetch(`http://127.0.0.1:8000/jira/sync-projects/${companyName}`, { method: "POST" }).catch(() => {});
+            projRes = await fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
+            projData = projRes.ok ? await projRes.json() : null;
+          }
+
+          if (projData?.projects) {
+            setProjects(projData.projects);
+          }
         } else {
           setIsConnected(false);
           setShowConnectionForm(true);
           setProjects([]);
-          return null;
-        }
-      })
-      .then((res) => (res && res.ok ? res.json() : null))
-      .then((projData) => {
-        if (projData?.projects) {
-          setProjects(projData.projects);
         }
       })
       .catch((err) => console.error("Error loading Jira details:", err))
@@ -160,33 +164,27 @@ function JiraIntegration({ onClose }) {
 
       // 2. Sync Projects from Jira API
       toast.loading("Fetching projects from Jira...", { id: toastId });
-      const syncRes = await fetch(`http://127.0.0.1:8000/jira/sync-projects/${companyName}`, {
+      const syncProjRes = await fetch(`http://127.0.0.1:8000/jira/sync-projects/${companyName}`, {
         method: "POST",
       });
 
-      if (!syncRes.ok) {
-        const errorData = await syncRes.json().catch(() => ({}));
+      if (!syncProjRes.ok) {
+        const errorData = await syncProjRes.json().catch(() => ({}));
         throw new Error(errorData.detail || "Failed to sync Jira projects. Check credentials.");
       }
 
-      // 3. Sync Boards, Sprints & Sprint Issues to MongoDB
-      toast.loading("Syncing boards, sprints & issues to MongoDB...", { id: toastId });
-      const boardsSyncRes = await fetch(`http://127.0.0.1:8000/jira/sync-boards/${companyName}`, {
-        method: "POST",
-      });
-
-      if (!boardsSyncRes.ok) {
-        console.warn("Board/Sprint sync returned non-200 status, continuing with project selection.");
-      }
-
-      // 4. Fetch synced projects list
+      // 3. Fetch synced projects list so modal lists projects immediately
       const projRes = await fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
       if (projRes.ok) {
         const projData = await projRes.json();
         setProjects(projData.projects || []);
       }
 
-      toast.success("Jira connected & all data synced to MongoDB successfully!", { id: toastId });
+      // 4. Orchestrated Sync: Sync Boards, Sprints & Sprint Issues to MongoDB
+      toast.loading("Syncing boards, sprints & issues to MongoDB...", { id: toastId });
+      await fetch(`http://127.0.0.1:8000/jira/sync-all/${companyName}`, { method: "POST" }).catch(() => {});
+
+      toast.success("Jira connected & all data synced successfully!", { id: toastId });
       setIsConnected(true);
       setShowConnectionForm(false);
     } catch (err) {

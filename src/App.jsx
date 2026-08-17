@@ -4,7 +4,7 @@ import { Loader2 } from "lucide-react";
 import { Toaster } from "react-hot-toast";
 
 import AuthPage from "./components/AuthPage";
-import Home from "./components/Home";
+import Standup from "./components/Standup";
 import Layout from "./components/Layout";
 import OrganizationPage from "./Pages/OrganizationPage";
 import JiraIntegration from "./components/JiraIntegration";
@@ -79,7 +79,7 @@ function App() {
       case "eng-metrics":
         return <ComingSoon title="Eng Metrics" />;
       case "standup":
-        return <Home user={user} logout={logout} companyName={companyName} />;
+        return <Standup user={user} logout={logout} companyName={companyName} />;
       case "tech-quality":
         return <ComingSoon title="Tech Quality" />;
       case "release":

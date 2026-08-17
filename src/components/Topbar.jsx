@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import toast from "react-hot-toast";
 import {
   Bell,
   ChevronDown,
@@ -29,6 +30,7 @@ function Topbar({ user, companyName, logout, currentPage }) {
   const [activeSprint, setActiveSprint] = useState(null);
 
   const [selectedRepo, setSelectedRepo] = useState("All repositories");
+  const [repos, setRepos] = useState([]);
   const [selectedFilterType, setSelectedFilterType] = useState("Sprint");
   const [selectedDev, setSelectedDev] = useState("Select Developer");
 
@@ -60,6 +62,27 @@ function Topbar({ user, companyName, logout, currentPage }) {
     const handleUpdate = () => fetchProjects();
     window.addEventListener("jiraProjectsUpdated", handleUpdate);
     return () => window.removeEventListener("jiraProjectsUpdated", handleUpdate);
+  }, [compName]);
+
+  // --- GitHub Repositories Data ---
+  const fetchRepos = () => {
+    if (!compName) return;
+
+    fetch(`http://127.0.0.1:8000/github/db-repos/${compName}`)
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data?.repos && Array.isArray(data.repos)) {
+          setRepos(data.repos);
+        }
+      })
+      .catch(() => { });
+  };
+
+  useEffect(() => {
+    fetchRepos();
+    const handleReposUpdate = () => fetchRepos();
+    window.addEventListener("githubReposUpdated", handleReposUpdate);
+    return () => window.removeEventListener("githubReposUpdated", handleReposUpdate);
   }, [compName]);
 
 
@@ -147,19 +170,30 @@ function Topbar({ user, companyName, logout, currentPage }) {
     if (!compName) return;
 
     setSyncing(true);
+    const toastId = toast.loading("Syncing workspace data...");
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/jira/sync-boards/${compName}`,
+        `http://127.0.0.1:8000/jira/sync-all/${compName}`,
         { method: "POST" }
       );
       if (response.ok) {
-        const syncedAt = new Date();
-        setLastSynced(syncedAt);
-        localStorage.setItem("lastSyncedBoards", syncedAt.toISOString());
-        window.dispatchEvent(new CustomEvent("jiraProjectsUpdated"));
+        const data = await response.json();
+        if (data.synced === false) {
+          toast.error(data.message || "Nothing to sync: Neither Jira nor GitHub is connected.", { id: toastId });
+        } else {
+          const syncedAt = new Date();
+          setLastSynced(syncedAt);
+          localStorage.setItem("lastSyncedBoards", syncedAt.toISOString());
+          window.dispatchEvent(new CustomEvent("jiraProjectsUpdated"));
+          window.dispatchEvent(new CustomEvent("githubReposUpdated"));
+          toast.success("Workspace data synced successfully!", { id: toastId });
+        }
+      } else {
+        toast.error("Failed to sync workspace data.", { id: toastId });
       }
     } catch (err) {
       console.error("Sync error:", err);
+      toast.error("Error syncing workspace data.", { id: toastId });
     } finally {
       setSyncing(false);
     }
@@ -292,10 +326,19 @@ function Topbar({ user, companyName, logout, currentPage }) {
 
               <select
                 value={selectedRepo}
-                onChange={(e) => setSelectedRepo(e.target.value)}
+                onChange={(e) => {
+                  setSelectedRepo(e.target.value);
+                  localStorage.setItem("selectedRepo", e.target.value);
+                  window.dispatchEvent(new CustomEvent("repoSelected", { detail: e.target.value }));
+                }}
                 className="w-40 md:w-48 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
               >
                 <option value="All repositories">All repositories</option>
+                {repos.map((r) => (
+                  <option key={r.repoId || r.id || r.name} value={r.name} className="bg-[#141418]">
+                    {r.name || r.fullName}
+                  </option>
+                ))}
               </select>
 
               <select

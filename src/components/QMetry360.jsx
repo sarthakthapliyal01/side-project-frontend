@@ -98,7 +98,7 @@ function QMetry360() {
         // If no issues found in DB, attempt a sync from Jira API
         if (issues.length === 0) {
           const syncRes = await fetch(
-            `http://127.0.0.1:8000/jira/sync-boards/${encodeURIComponent(companyName)}`,
+            `http://127.0.0.1:8000/jira/sync-all/${encodeURIComponent(companyName)}`,
             { method: "POST" }
           );
           if (syncRes.ok) {

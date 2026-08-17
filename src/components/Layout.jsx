@@ -27,7 +27,7 @@ function Layout({
             logout={logout}
             currentPage={currentPage}
           />
-          <main className={`flex-1 bg-transparent ${currentPage === "qmetry360" || currentPage === "standup" ? "overflow-hidden" : "overflow-y-auto"}`}>
+          <main className={`flex-1 bg-transparent ${currentPage === "qmetry360" ? "overflow-hidden" : "overflow-y-auto scrollbar-thin scrollbar-thumb-white/10"}`}>
             {children}
           </main>
         </div>

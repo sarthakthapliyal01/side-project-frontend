@@ -12,31 +12,47 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal }) {
   const companyName = localStorage.getItem("companyName") || "";
 
   // --- Integration Status Check ---
-  useEffect(() => {
-    let isMounted = true;
-    
-    async function checkStatuses() {
-      setLoading(true);
-      try {
-        if (companyName) {
-          const jiraRes = await fetch(`http://127.0.0.1:8000/jira/connection/${companyName}`).catch(() => null);
-          if (jiraRes?.ok) {
-            const data = await jiraRes.json();
-            if (isMounted && data?.connected) {
-              setJiraConnected(true);
-              setJiraHost(data.jira_host || "");
-            }
-          }
+  const checkStatuses = async () => {
+    if (!companyName) return;
+    setLoading(true);
+    try {
+      // Check Jira
+      const jiraRes = await fetch(`http://127.0.0.1:8000/jira/connection/${companyName}`).catch(() => null);
+      if (jiraRes?.ok) {
+        const data = await jiraRes.json();
+        if (data?.connected) {
+          setJiraConnected(true);
+          setJiraHost(data.jira_host || "");
+        } else {
+          setJiraConnected(false);
         }
-      } catch (err) {
-        console.error("Error checking integration status:", err);
-      } finally {
-        if (isMounted) setLoading(false);
       }
+      // Check GitHub
+      const githubRes = await fetch(`http://127.0.0.1:8000/github/connection/${companyName}`).catch(() => null);
+      if (githubRes?.ok) {
+        const ghData = await githubRes.json();
+        if (ghData?.connected) {
+          setGithubConnected(true);
+        } else {
+          setGithubConnected(false);
+        }
+      }
+    } catch (err) {
+      console.error("Error checking integration status:", err);
+    } finally {
+      setLoading(false);
     }
+  };
 
+  useEffect(() => {
     checkStatuses();
-    return () => { isMounted = false; };
+    const handleUpdate = () => checkStatuses();
+    window.addEventListener("githubConnectionUpdated", handleUpdate);
+    window.addEventListener("jiraProjectsUpdated", handleUpdate);
+    return () => {
+      window.removeEventListener("githubConnectionUpdated", handleUpdate);
+      window.removeEventListener("jiraProjectsUpdated", handleUpdate);
+    };
   }, [companyName]);
 
   return (

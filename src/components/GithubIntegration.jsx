@@ -1,7 +1,8 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaGithub } from "react-icons/fa";
 import { CheckCircle, XCircle, Loader2 } from "lucide-react";
+import toast from "react-hot-toast";
 
 function GitHubIntegration({ companyName }) {
   const [githubOwner, setGithubOwner] = useState("");
@@ -10,40 +11,75 @@ function GitHubIntegration({ companyName }) {
   const [connected, setConnected] = useState(false);
   const [message, setMessage] = useState("");
 
-  //GitHub Connection 
-  const testConnection = async () => {
+  const comp = companyName || localStorage.getItem("companyName");
+
+  useEffect(() => {
+    if (!comp) return;
+    axios
+      .get(`http://localhost:8000/github/connection/${comp}`)
+      .then((res) => {
+        if (res.data?.connected) {
+          setConnected(true);
+          if (res.data.github_owner) {
+            setGithubOwner(res.data.github_owner);
+          }
+          setMessage(`Connected to GitHub account: ${res.data.github_owner}`);
+        }
+      })
+      .catch(() => {});
+  }, [comp]);
+
+  const handleConnectGithub = async () => {
+    if (!comp) {
+      toast.error("Company name is missing.");
+      return;
+    }
+    if (!githubOwner.trim() || !githubToken.trim()) {
+      toast.error("Please enter both GitHub Owner and Personal Access Token.");
+      return;
+    }
+
     setLoading(true);
     setMessage("");
+    const toastId = toast.loading("Verifying GitHub credentials...");
 
     try {
-      const response = await axios.post(
-        "http://localhost:8000/github/test-connection",
-        { github_owner: githubOwner, github_token: githubToken }
-      );
-
-      if (response.data.connected) {
-        setConnected(true);
-        setMessage("GitHub connection successful.");
-      }
-    } catch (error) {
-      setConnected(false);
-      setMessage(error.response?.data?.detail || "Unable to connect to GitHub.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const saveConnection = async () => {
-    try {
-      const response = await axios.post("http://localhost:8000/github/save-connection", {
-        companyName,
+      // 1. Test connection
+      const testRes = await axios.post("http://localhost:8000/github/test-connection", {
         github_owner: githubOwner,
         github_token: githubToken,
       });
 
-      alert(response.data.message);
+      if (!testRes.data?.connected) {
+        throw new Error("Unable to verify GitHub credentials.");
+      }
+
+      // 2. Save connection
+      toast.loading("Saving connection...", { id: toastId });
+      await axios.post("http://localhost:8000/github/save-connection", {
+        companyName: comp,
+        github_owner: githubOwner,
+        github_token: githubToken,
+      });
+
+      // 3. Sync Repositories & PRs
+      toast.loading("Syncing repositories & pull requests to MongoDB...", { id: toastId });
+      await axios.post(`http://localhost:8000/github/sync-repos/${comp}`).catch(() => {});
+      await axios.post(`http://localhost:8000/github/sync-prs/${comp}`).catch(() => {});
+
+      window.dispatchEvent(new CustomEvent("githubReposUpdated"));
+      window.dispatchEvent(new CustomEvent("githubConnectionUpdated"));
+
+      setConnected(true);
+      setMessage(`Successfully connected & synced GitHub account: ${githubOwner}`);
+      toast.success("GitHub connected & repositories & PRs synced!", { id: toastId });
     } catch (error) {
-      alert(error.response?.data?.detail || "Failed to save GitHub connection.");
+      setConnected(false);
+      const errMsg = error.response?.data?.detail || error.message || "Failed to connect to GitHub.";
+      setMessage(errMsg);
+      toast.error(errMsg, { id: toastId });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -56,7 +92,7 @@ function GitHubIntegration({ companyName }) {
         <div>
           <h2 className="text-xl font-bold text-white tracking-tight">GitHub Integration</h2>
           <p className="text-[#a1a1a1] text-xs mt-0.5">
-            Connect your GitHub account to sync repositories and pull requests.
+            Connect your GitHub account to sync repositories and pull requests into MongoDB.
           </p>
         </div>
       </div>
@@ -70,7 +106,7 @@ function GitHubIntegration({ companyName }) {
             type="text"
             value={githubOwner}
             onChange={(e) => setGithubOwner(e.target.value)}
-            placeholder="e.g. microsoft"
+            placeholder="e.g. username or organization"
             className="w-full rounded-xl border border-[#333333] bg-[#262626] text-white placeholder:text-[#777777] px-4 py-3 focus:outline-none focus:border-white text-sm transition-all"
           />
         </div>
@@ -90,39 +126,29 @@ function GitHubIntegration({ companyName }) {
 
         {message && (
           <div className={`flex items-center gap-2 rounded-xl px-4 py-3 border text-sm font-medium ${
-            connected ? "bg-white/10 text-white border-white/20" : "bg-red-500/10 text-red-400 border-red-500/30"
+            connected ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-red-500/10 text-red-400 border-red-500/30"
           }`}>
             {connected ? <CheckCircle size={18} /> : <XCircle size={18} />}
             {message}
           </div>
         )}
 
-        <div className="flex gap-4 pt-2">
+        <div className="pt-2">
           <button
-            onClick={testConnection}
+            onClick={handleConnectGithub}
             disabled={loading}
-            className="bg-white hover:bg-neutral-200 text-black px-6 py-3 rounded-full font-bold text-sm transition-all flex items-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
+            className="w-full bg-white hover:bg-neutral-200 text-black px-6 py-3 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
           >
             {loading ? (
               <>
                 <Loader2 size={18} className="animate-spin" />
-                Testing...
+                Connecting GitHub...
               </>
+            ) : connected ? (
+              "Reconnect GitHub"
             ) : (
-              "Test Connection"
+              "Connect GitHub"
             )}
-          </button>
-
-          <button
-            onClick={saveConnection}
-            disabled={!connected}
-            className={`px-6 py-3 rounded-full font-bold text-sm transition-all ${
-              connected
-                ? "bg-white hover:bg-neutral-200 text-black shadow-md active:scale-95 cursor-pointer"
-                : "bg-[#262626] text-[#777777] cursor-not-allowed border border-[#333333]"
-            }`}
-          >
-            Save Connection
           </button>
         </div>
       </div>
