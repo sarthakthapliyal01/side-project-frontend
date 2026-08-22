@@ -37,6 +37,17 @@ function Topbar({ user, companyName, logout, currentPage }) {
   const compName = companyName || localStorage.getItem("companyName") || "Organization";
 
   // --- Project Data ---
+  const handleProjectChange = (boardId) => {
+    setSelectedBoard(boardId);
+    if (boardId) {
+      localStorage.setItem("currentProject", boardId);
+      window.dispatchEvent(new CustomEvent("projectSelected", { detail: boardId }));
+    } else {
+      localStorage.removeItem("currentProject");
+      window.dispatchEvent(new CustomEvent("projectSelected", { detail: "" }));
+    }
+  };
+
   const fetchProjects = () => {
     if (!compName) return;
 
@@ -47,9 +58,16 @@ function Topbar({ user, companyName, logout, currentPage }) {
         if (Array.isArray(fetchedProjects)) {
           setProjects(fetchedProjects);
           if (fetchedProjects.length > 0) {
-            setSelectedBoard((prev) => prev || String(fetchedProjects[0].projectId));
+            const savedProject = localStorage.getItem("currentProject");
+            const isSavedValid = savedProject && fetchedProjects.some((p) => String(p.projectId) === String(savedProject) || String(p.projectKey) === String(savedProject));
+            const activeId = isSavedValid ? savedProject : String(fetchedProjects[0].projectId);
+            setSelectedBoard(activeId);
+            localStorage.setItem("currentProject", activeId);
+            window.dispatchEvent(new CustomEvent("projectSelected", { detail: activeId }));
           } else {
             setSelectedBoard("");
+            localStorage.removeItem("currentProject");
+            window.dispatchEvent(new CustomEvent("projectSelected", { detail: "" }));
           }
         }
       })
@@ -71,8 +89,17 @@ function Topbar({ user, companyName, logout, currentPage }) {
     fetch(`http://127.0.0.1:8000/github/db-repos/${compName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
-        if (data?.repos && Array.isArray(data.repos)) {
+        if (data?.repos && Array.isArray(data.repos) && data.repos.length > 0) {
           setRepos(data.repos);
+        } else {
+          fetch(`http://127.0.0.1:8000/github/repos/${compName}`)
+            .then((res) => res.ok && res.json())
+            .then((apiData) => {
+              if (apiData?.repos && Array.isArray(apiData.repos)) {
+                setRepos(apiData.repos);
+              }
+            })
+            .catch(() => {});
         }
       })
       .catch(() => { });
@@ -82,7 +109,11 @@ function Topbar({ user, companyName, logout, currentPage }) {
     fetchRepos();
     const handleReposUpdate = () => fetchRepos();
     window.addEventListener("githubReposUpdated", handleReposUpdate);
-    return () => window.removeEventListener("githubReposUpdated", handleReposUpdate);
+    window.addEventListener("githubConnectionUpdated", handleReposUpdate);
+    return () => {
+      window.removeEventListener("githubReposUpdated", handleReposUpdate);
+      window.removeEventListener("githubConnectionUpdated", handleReposUpdate);
+    };
   }, [compName]);
 
 
@@ -186,6 +217,7 @@ function Topbar({ user, companyName, logout, currentPage }) {
           localStorage.setItem("lastSyncedBoards", syncedAt.toISOString());
           window.dispatchEvent(new CustomEvent("jiraProjectsUpdated"));
           window.dispatchEvent(new CustomEvent("githubReposUpdated"));
+          window.dispatchEvent(new CustomEvent("githubPrsUpdated"));
           toast.success("Workspace data synced successfully!", { id: toastId });
         }
       } else {
@@ -310,7 +342,7 @@ function Topbar({ user, companyName, logout, currentPage }) {
 
               <select
                 value={selectedBoard}
-                onChange={(e) => setSelectedBoard(e.target.value)}
+                onChange={(e) => handleProjectChange(e.target.value)}
                 className="w-52 md:w-60 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
               >
                 {projects.length > 0 ? (

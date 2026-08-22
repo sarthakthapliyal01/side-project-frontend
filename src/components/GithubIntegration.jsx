@@ -62,17 +62,16 @@ function GitHubIntegration({ companyName }) {
         github_token: githubToken,
       });
 
-      // 3. Sync Repositories & PRs
-      toast.loading("Syncing repositories & pull requests to MongoDB...", { id: toastId });
+      // 3. Sync repositories ONLY (PR data will sync when user clicks Sync button in Standup)
+      toast.loading("Fetching GitHub repositories...", { id: toastId });
       await axios.post(`http://localhost:8000/github/sync-repos/${comp}`).catch(() => {});
-      await axios.post(`http://localhost:8000/github/sync-prs/${comp}`).catch(() => {});
 
-      window.dispatchEvent(new CustomEvent("githubReposUpdated"));
       window.dispatchEvent(new CustomEvent("githubConnectionUpdated"));
+      window.dispatchEvent(new CustomEvent("githubReposUpdated"));
 
       setConnected(true);
-      setMessage(`Successfully connected & synced GitHub account: ${githubOwner}`);
-      toast.success("GitHub connected & repositories & PRs synced!", { id: toastId });
+      setMessage(`Connected to GitHub account: ${githubOwner}`);
+      toast.success("GitHub connected & repositories fetched successfully!", { id: toastId });
     } catch (error) {
       setConnected(false);
       const errMsg = error.response?.data?.detail || error.message || "Failed to connect to GitHub.";

@@ -85,7 +85,11 @@ function QMetry360() {
 
     setLoading(true);
     try {
-      const queryParam = `?sprint_id=${targetSprintId}`;
+      const targetProject = localStorage.getItem("currentProject");
+      const params = new URLSearchParams();
+      if (targetSprintId) params.append("sprint_id", targetSprintId);
+      if (targetProject) params.append("project_id", targetProject);
+      const queryParam = params.toString() ? `?${params.toString()}` : "";
       const url = `http://127.0.0.1:8000/jira/db-sprint-issues/${encodeURIComponent(
         companyName
       )}${queryParam}`;
@@ -134,10 +138,12 @@ function QMetry360() {
     };
 
     window.addEventListener("sprintSelected", handleSprintSelected);
+    window.addEventListener("projectSelected", handleProjectsUpdated);
     window.addEventListener("jiraProjectsUpdated", handleProjectsUpdated);
 
     return () => {
       window.removeEventListener("sprintSelected", handleSprintSelected);
+      window.removeEventListener("projectSelected", handleProjectsUpdated);
       window.removeEventListener("jiraProjectsUpdated", handleProjectsUpdated);
     };
   }, [currentSprintId, fetchIssuesData]);
