@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react";
-import { Kanban, FileCode2 } from "lucide-react";
+import { Kanban, FileCode2, Layers } from "lucide-react";
 import { FaGithub } from "react-icons/fa";
-import toast from "react-hot-toast";
 
-function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal }) {
+function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal, onOpenCapacityPlanning, onOpenRolesAndBilling }) {
   const [jiraConnected, setJiraConnected] = useState(false);
-  const [jiraHost, setJiraHost] = useState("");
   const [githubConnected, setGithubConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -20,22 +18,13 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal }) {
       const jiraRes = await fetch(`http://127.0.0.1:8000/jira/connection/${companyName}`).catch(() => null);
       if (jiraRes?.ok) {
         const data = await jiraRes.json();
-        if (data?.connected) {
-          setJiraConnected(true);
-          setJiraHost(data.jira_host || "");
-        } else {
-          setJiraConnected(false);
-        }
+        setJiraConnected(Boolean(data?.connected));
       }
       // Check GitHub
       const githubRes = await fetch(`http://127.0.0.1:8000/github/connection/${companyName}`).catch(() => null);
       if (githubRes?.ok) {
         const ghData = await githubRes.json();
-        if (ghData?.connected) {
-          setGithubConnected(true);
-        } else {
-          setGithubConnected(false);
-        }
+        setGithubConnected(Boolean(ghData?.connected));
       }
     } catch (err) {
       console.error("Error checking integration status:", err);
@@ -56,11 +45,11 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal }) {
   }, [companyName]);
 
   return (
-    <div className="w-full min-h-full bg-transparent text-slate-100 p-4 md:p-6 lg:p-8 font-sans">
-      <div className="max-w-6xl mx-auto space-y-10">
+    <div className="w-full min-h-full bg-transparent text-slate-100 p-6 md:p-8 lg:p-10 font-sans">
+      <div className="max-w-6xl mx-auto">
 
-        {/* Ticket Sources Section */}
-        <section className="space-y-4">
+        {/* 1. Ticket Sources Section */}
+        <section className="space-y-4 mb-10">
           <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
             <Kanban size={20} className="text-[#999999]" />
             <span>Ticket Sources</span>
@@ -102,8 +91,8 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal }) {
           </div>
         </section>
 
-        {/* Code Sources Section */}
-        <section className="space-y-4">
+        {/* 2. Code Sources Section */}
+        <section className="space-y-4 mb-10">
           <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
             <FileCode2 size={20} className="text-[#999999]" />
             <span>Code Sources</span>
@@ -145,11 +134,33 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal }) {
           </div>
         </section>
 
+        {/* 3. Capacity Planning Section */}
+        <section className="space-y-4">
+          <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
+            <Layers size={20} className="text-[#999999]" />
+            <span>Capacity Planning</span>
+          </h2>
+
+          <div className="p-6 bg-[#0c0c0e]/90 backdrop-blur-xl border border-[#1e1e24] rounded-3xl shadow-2xl flex flex-wrap items-center gap-4">
+            <button
+              onClick={() => onOpenCapacityPlanning?.()}
+              className="px-5 py-2.5 bg-[#141418] hover:bg-[#1c1c24] border border-[#27272a] hover:border-white/30 rounded-xl text-xs md:text-sm font-semibold text-white transition-all cursor-pointer shadow-md"
+            >
+              Capacity Planning
+            </button>
+
+            <button
+              onClick={() => onOpenRolesAndBilling?.()}
+              className="px-5 py-2.5 bg-[#141418] hover:bg-[#1c1c24] border border-[#27272a] hover:border-white/30 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer shadow-md"
+            >
+              Roles & Rate Card
+            </button>
+          </div>
+        </section>
+
       </div>
     </div>
   );
 }
 
 export default IntegrationsPage;
-
-

@@ -216,6 +216,8 @@ function Topbar({ user, companyName, logout, currentPage }) {
           setLastSynced(syncedAt);
           localStorage.setItem("lastSyncedBoards", syncedAt.toISOString());
           window.dispatchEvent(new CustomEvent("jiraProjectsUpdated"));
+          window.dispatchEvent(new CustomEvent("jiraSyncCompleted"));
+          window.dispatchEvent(new CustomEvent("jiraIssuesUpdated"));
           window.dispatchEvent(new CustomEvent("githubReposUpdated"));
           window.dispatchEvent(new CustomEvent("githubPrsUpdated"));
           toast.success("Workspace data synced successfully!", { id: toastId });

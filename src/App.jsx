@@ -11,6 +11,8 @@ import JiraIntegration from "./components/JiraIntegration";
 import GitHubIntegration from "./components/GithubIntegration";
 import IntegrationsPage from "./components/IntegrationsPage";
 import QMetry360 from "./components/QMetry360";
+import CapacityPlanning from "./Pages/CapacityPlanning";
+import RolesAndBilling from "./Pages/RolesAndBilling";
 
 function App() {
   const [organizationCreated, setOrganizationCreated] = useState(false);
@@ -79,7 +81,11 @@ function App() {
       case "eng-metrics":
         return <ComingSoon title="Eng Metrics" />;
       case "standup":
-        return <Standup user={user} logout={logout} companyName={companyName} />;
+        return <Standup user={user} logout={logout} companyName={companyName} onOpenCapacityDetails={() => setCurrentPage("capacity-planning")} />;
+      case "capacity-planning":
+        return <CapacityPlanning user={user} onBack={() => setCurrentPage("standup")} />;
+      case "roles-and-billing":
+        return <RolesAndBilling onBack={() => setCurrentPage("integration")} />;
       case "tech-quality":
         return <ComingSoon title="Tech Quality" />;
       case "release":
@@ -90,6 +96,8 @@ function App() {
             <IntegrationsPage
               onOpenJiraModal={() => setActiveModal('jira')}
               onOpenGithubModal={() => setActiveModal('github')}
+              onOpenCapacityPlanning={() => setCurrentPage("capacity-planning")}
+              onOpenRolesAndBilling={() => setCurrentPage("roles-and-billing")}
             />
 
             {activeModal && (
