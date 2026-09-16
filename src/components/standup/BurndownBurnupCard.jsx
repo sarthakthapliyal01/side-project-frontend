@@ -132,12 +132,12 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
   const headerRight = (
     <div className="flex items-center gap-2 shrink-0">
       {/* Burndown vs Burnup toggle */}
-      <div className="flex items-center gap-1 bg-[#18181d] p-1 rounded-full border border-white/10">
+      <div className="flex items-center gap-1 bg-hover p-1 rounded-full border border-ink/10">
         <button
           onClick={() => setChartType("burndown")}
           className={`px-3 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${chartType === "burndown"
-            ? "bg-white text-black shadow-md shadow-white/10"
-            : "text-slate-400 hover:text-white"
+            ? "bg-inverse text-on-inverse shadow-none shadow-white/10"
+            : "text-muted hover:text-ink"
             }`}
         >
           Burndown
@@ -145,8 +145,8 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
         <button
           onClick={() => setChartType("burnup")}
           className={`px-3 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${chartType === "burnup"
-            ? "bg-white text-black shadow-md shadow-white/10"
-            : "text-slate-400 hover:text-white"
+            ? "bg-inverse text-on-inverse shadow-none shadow-white/10"
+            : "text-muted hover:text-ink"
             }`}
         >
           Burnup
@@ -154,12 +154,12 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
       </div>
 
       {/* SP vs Hrs toggle */}
-      <div className="flex items-center gap-1 bg-[#18181d] p-1 rounded-full border border-white/10">
+      <div className="flex items-center gap-1 bg-hover p-1 rounded-full border border-ink/10">
         <button
           onClick={() => setUnitMode("SP")}
           className={`px-2.5 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${unitMode === "SP"
-            ? "bg-[#3b82f6] text-white shadow-md shadow-blue-500/30"
-            : "text-slate-400 hover:text-white"
+            ? "bg-accent text-on-accent shadow-none shadow-blue-500/30"
+            : "text-muted hover:text-ink"
             }`}
         >
           SP
@@ -167,8 +167,8 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
         <button
           onClick={() => setUnitMode("Hrs")}
           className={`px-2.5 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${unitMode === "Hrs"
-            ? "bg-[#3b82f6] text-white shadow-md shadow-blue-500/30"
-            : "text-slate-400 hover:text-white"
+            ? "bg-accent text-on-accent shadow-none shadow-blue-500/30"
+            : "text-muted hover:text-ink"
             }`}
         >
           Hrs
@@ -191,8 +191,8 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
         headerRight={headerRight}
         className="col-span-12 md:col-span-6 lg:col-span-4 min-h-[320px]"
       >
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-400 gap-2">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
+        <div className="flex flex-col items-center justify-center h-[220px] text-muted gap-2">
+          <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           <span className="text-sm font-medium">Loading {titleText} Data...</span>
         </div>
       </DashboardCard>
@@ -207,7 +207,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
         headerRight={headerRight}
         className="col-span-12 md:col-span-6 lg:col-span-4 min-h-[320px]"
       >
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-500 gap-2">
+        <div className="flex flex-col items-center justify-center h-[220px] text-muted gap-2">
           <span className="text-sm font-medium">No {titleText.toLowerCase()} data available</span>
         </div>
       </DashboardCard>
@@ -290,39 +290,39 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
       <div className="flex flex-col h-full justify-between pt-1 pb-2 px-1">
         {/* TOP STAT CARDS (For Burndown mode) */}
         {isBurndown && currentMetrics && (
-          <div className="grid grid-cols-5 gap-2 mb-3">
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Today's</span>
-              <div className="flex items-center justify-center gap-1 text-sm md:text-base font-bold text-[#3b82f6]">
+          <div className="q-chart-metrics grid grid-cols-5 gap-2 mb-3">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Today's</span>
+              <div className="flex items-center justify-center gap-1 text-sm md:text-base font-bold text-accent">
                 <span>{currentMetrics.todaysBurned ?? 0}</span>
-                {(currentMetrics.todaysBurned ?? 0) > 0 && <span className="text-xs text-emerald-400 font-extrabold">↗</span>}
+                {(currentMetrics.todaysBurned ?? 0) > 0 && <span className="text-xs text-success font-semibold">↗</span>}
               </div>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Yesterday's</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Yesterday's</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.yesterdaysBurned ?? 0}
               </span>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Target</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Target</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.target ?? 0}
               </span>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Comple. TT</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Comple. TT</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.compleTT ?? 0}
               </span>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">5 Spts. Avg</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">5 Spts. Avg</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.fiveSptsAvg ?? 0}
               </span>
             </div>
@@ -352,7 +352,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     y={padTop}
                     width={rectWidth}
                     height={chartH}
-                    fill="rgba(255, 255, 255, 0.05)"
+                    fill="var(--bg-control)"
                     rx="2"
                   />
                   <line
@@ -360,7 +360,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     y1={padTop}
                     x2={colLeft}
                     y2={padTop + chartH}
-                    stroke="rgba(255, 255, 255, 0.1)"
+                    stroke="var(--chart-grid)"
                     strokeDasharray="2 2"
                   />
                   <line
@@ -368,7 +368,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     y1={padTop}
                     x2={colRight}
                     y2={padTop + chartH}
-                    stroke="rgba(255, 255, 255, 0.1)"
+                    stroke="var(--chart-grid)"
                     strokeDasharray="2 2"
                   />
                 </g>
@@ -385,7 +385,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     y1={yPos}
                     x2={svgWidth - padRight}
                     y2={yPos}
-                    stroke="rgba(255, 255, 255, 0.07)"
+                    stroke="var(--chart-grid)"
                     strokeDasharray="3 3"
                     strokeWidth="1"
                   />
@@ -393,7 +393,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     x={padLeft - 6}
                     y={yPos + 4}
                     textAnchor="end"
-                    fill="#94a3b8"
+                    fill="var(--text-secondary)"
                     fontSize="10"
                     fontFamily="monospace"
                   >
@@ -414,7 +414,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     y1={padTop}
                     x2={xPos}
                     y2={padTop + chartH}
-                    stroke={isHovered ? "rgba(255, 255, 255, 0.25)" : "rgba(255, 255, 255, 0.04)"}
+                    stroke={isHovered ? "var(--color-line-strong)" : "var(--chart-grid)"}
                     strokeDasharray="2 2"
                     strokeWidth={isHovered ? "1.5" : "1"}
                   />
@@ -422,7 +422,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     x={xPos}
                     y={svgHeight - 6}
                     textAnchor="middle"
-                    fill={isHovered ? "#ffffff" : "#94a3b8"}
+                    fill={isHovered ? "var(--text-primary)" : "var(--text-secondary)"}
                     fontSize="10"
                     fontWeight={isHovered ? "bold" : "normal"}
                   >
@@ -437,7 +437,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
               <path
                 d={idealPathStr}
                 fill="none"
-                stroke="#f59e0b"
+                stroke="var(--warning)"
                 strokeWidth="2"
                 strokeDasharray={isBurndown ? "4 4" : undefined}
                 strokeLinecap="round"
@@ -450,7 +450,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
               <path
                 d={actualPathStr}
                 fill="none"
-                stroke="#06b6d4"
+                stroke="var(--cyan)"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -466,13 +466,13 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                     cx={pt.x}
                     cy={pt.y}
                     r={isHovered ? "5" : "3.5"}
-                    fill="#06b6d4"
-                    stroke="#0c0c0e"
+                    fill="var(--cyan)"
+                    stroke="var(--bg-surface)"
                     strokeWidth="2"
                     className="transition-all duration-150 cursor-pointer"
                   />
                   {isHovered && (
-                    <circle cx={pt.x} cy={pt.y} r="8" fill="#06b6d4" fillOpacity="0.3" />
+                    <circle cx={pt.x} cy={pt.y} r="8" fill="var(--cyan)" fillOpacity="0.3" />
                   )}
                 </g>
               );
@@ -508,25 +508,25 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
                 transform: "translateX(-50%)",
               }}
             >
-              <div className="bg-[#18181d] border border-white/20 text-white text-xs font-medium px-3 py-2 rounded-xl shadow-2xl space-y-1 backdrop-blur-md">
-                <div className="text-[11px] font-bold text-slate-300 border-b border-white/10 pb-1 flex items-center justify-between gap-3">
+              <div className="bg-hover border border-ink/20 text-ink text-xs font-medium px-3 py-2 rounded-xl shadow-none space-y-1 backdrop-blur-md">
+                <div className="text-[12px] font-bold text-ink border-b border-ink/10 pb-1 flex items-center justify-between gap-3">
                   <span>Date: {dates[hoverIndex]}</span>
-                  <span className="text-[10px] text-blue-400 font-semibold">{unitMode}</span>
+                  <span className="text-[12px] text-accent font-semibold">{unitMode}</span>
                 </div>
-                <div className="flex items-center justify-between gap-4 text-[11px]">
-                  <span className="flex items-center gap-1.5 text-amber-400">
-                    <span className="w-2 h-0.5 bg-amber-400 rounded-sm" /> Ideal:
+                <div className="flex items-center justify-between gap-4 text-[12px]">
+                  <span className="flex items-center gap-1.5 text-warning">
+                    <span className="w-2 h-0.5 bg-warning rounded-sm" /> Ideal:
                   </span>
-                  <span className="font-bold text-white">
+                  <span className="font-bold text-ink">
                     {idealLine[hoverIndex] !== undefined ? idealLine[hoverIndex] : "N/A"}
                   </span>
                 </div>
                 {actualLine[hoverIndex] !== null && actualLine[hoverIndex] !== undefined && (
-                  <div className="flex items-center justify-between gap-4 text-[11px]">
-                    <span className="flex items-center gap-1.5 text-cyan-400">
-                      <span className="w-2 h-2 rounded-full bg-cyan-400" /> Actual:
+                  <div className="flex items-center justify-between gap-4 text-[12px]">
+                    <span className="flex items-center gap-1.5 text-cyan">
+                      <span className="w-2 h-2 rounded-full bg-cyan" /> Actual:
                     </span>
-                    <span className="font-bold text-white">{actualLine[hoverIndex]}</span>
+                    <span className="font-bold text-ink">{actualLine[hoverIndex]}</span>
                   </div>
                 )}
               </div>
@@ -535,14 +535,14 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
         </div>
 
         {/* BOTTOM LEGEND */}
-        <div className="flex items-center justify-center gap-6 pt-2 border-t border-white/5 text-xs font-semibold text-slate-300">
+        <div className="flex items-center justify-center gap-6 pt-2 border-t border-ink/5 text-xs font-semibold text-ink">
           <div className="flex items-center gap-2">
-            <span className="w-4 h-0.5 bg-[#f59e0b] rounded-full" />
-            <span className="text-slate-300">Ideal</span>
+            <span className="w-4 h-0.5 bg-warning rounded-full" />
+            <span className="text-ink">Ideal</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#06b6d4] shadow-sm shadow-cyan-500/50" />
-            <span className="text-slate-300">Actual</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-cyan shadow-sm shadow-cyan-500/50" />
+            <span className="text-ink">Actual</span>
           </div>
         </div>
       </div>

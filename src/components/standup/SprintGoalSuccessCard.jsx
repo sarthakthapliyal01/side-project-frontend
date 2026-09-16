@@ -1,27 +1,25 @@
+import { EmptyState } from "../ui/ProductUI";
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardCard from "./DashboardCard";
+import { getActiveTargetParams } from "../../utils/targetHelper";
 
 function SprintGoalSuccessCard({ currentProject }) {
   const [filterMode, setFilterMode] = useState("With added");
   const [unitMode, setUnitMode] = useState("SP");
   const [hoverIndex, setHoverIndex] = useState(null);
-
-  const [activeProjectId, setActiveProjectId] = useState(() => {
-    return currentProject || localStorage.getItem("currentProject") || "";
-  });
-
   const [sprints, setSprints] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  const fetchSprintGoalSuccess = useCallback(() => {
-    const companyName = localStorage.getItem("companyName");
+  const fetchSprintGoalSuccess = useCallback((signal) => {
+    const { companyName, project: targetProject } = getActiveTargetParams({
+      currentProject
+    });
+
     if (!companyName) {
       setLoading(false);
       setSprints([]);
       return;
     }
-
-    const targetProject = activeProjectId || currentProject || localStorage.getItem("currentProject") || "";
 
     const params = new URLSearchParams();
     if (targetProject) params.append("project_id", targetProject);
@@ -30,9 +28,10 @@ function SprintGoalSuccessCard({ currentProject }) {
     const url = `http://127.0.0.1:8000/jira/sprint-goal-success/${companyName}?${params.toString()}`;
 
     setLoading(true);
-    fetch(url, { cache: "no-store" })
+    fetch(url, { cache: "no-store", signal })
       .then((res) => res.ok && res.json())
       .then((data) => {
+        if (signal?.aborted) return;
         if (data && Array.isArray(data.sprints)) {
           setSprints(data.sprints);
         } else {
@@ -40,35 +39,39 @@ function SprintGoalSuccessCard({ currentProject }) {
         }
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error("Error fetching sprint goal success data:", err);
         setSprints([]);
       })
-      .finally(() => setLoading(false));
-  }, [activeProjectId, currentProject]);
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
+  }, [currentProject]);
 
   useEffect(() => {
-    fetchSprintGoalSuccess();
-  }, [fetchSprintGoalSuccess]);
-
-  useEffect(() => {
-    const handleProjectSelected = (e) => {
-      const pid = e?.detail || localStorage.getItem("currentProject") || "";
-      setActiveProjectId(String(pid));
-    };
+    let controller = new AbortController();
+    fetchSprintGoalSuccess(controller.signal);
 
     const handleJiraUpdated = () => {
-      fetchSprintGoalSuccess();
+      controller.abort();
+      controller = new AbortController();
+      fetchSprintGoalSuccess(controller.signal);
     };
 
-    window.addEventListener("projectSelected", handleProjectSelected);
+    window.addEventListener("projectSelected", handleJiraUpdated);
     window.addEventListener("sprintSelected", handleJiraUpdated);
+    window.addEventListener("filterTypeChanged", handleJiraUpdated);
     window.addEventListener("jiraProjectsUpdated", handleJiraUpdated);
     window.addEventListener("jiraSyncCompleted", handleJiraUpdated);
     window.addEventListener("jiraIssuesUpdated", handleJiraUpdated);
 
     return () => {
-      window.removeEventListener("projectSelected", handleProjectSelected);
+      controller.abort();
+      window.removeEventListener("projectSelected", handleJiraUpdated);
       window.removeEventListener("sprintSelected", handleJiraUpdated);
+      window.removeEventListener("filterTypeChanged", handleJiraUpdated);
       window.removeEventListener("jiraProjectsUpdated", handleJiraUpdated);
       window.removeEventListener("jiraSyncCompleted", handleJiraUpdated);
       window.removeEventListener("jiraIssuesUpdated", handleJiraUpdated);
@@ -80,19 +83,19 @@ function SprintGoalSuccessCard({ currentProject }) {
       <select
         value={filterMode}
         onChange={(e) => setFilterMode(e.target.value)}
-        className="bg-[#18181d] border border-white/10 text-slate-300 text-xs rounded-lg px-2.5 py-1 outline-none font-medium cursor-pointer hover:border-white/20 transition-colors"
+        className="bg-hover border border-ink/10 text-ink text-xs rounded-lg px-2.5 py-1 outline-none font-medium cursor-pointer hover:border-ink/20 transition-colors"
       >
         <option value="With added">With added</option>
         <option value="Without added">Without added</option>
       </select>
 
-      <div className="flex items-center gap-1 bg-[#18181d] p-1 rounded-full border border-white/10 shrink-0">
+      <div className="flex items-center gap-1 bg-hover p-1 rounded-full border border-ink/10 shrink-0">
         <button
           onClick={() => setUnitMode("SP")}
           className={`px-3 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
             unitMode === "SP"
-              ? "bg-[#3b82f6] text-white shadow-md shadow-blue-500/30"
-              : "text-slate-400 hover:text-white"
+              ? "bg-accent text-on-accent shadow-none shadow-blue-500/30"
+              : "text-muted hover:text-ink"
           }`}
         >
           SP
@@ -101,8 +104,8 @@ function SprintGoalSuccessCard({ currentProject }) {
           onClick={() => setUnitMode("Hrs")}
           className={`px-3 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
             unitMode === "Hrs"
-              ? "bg-[#3b82f6] text-white shadow-md shadow-blue-500/30"
-              : "text-slate-400 hover:text-white"
+              ? "bg-accent text-on-accent shadow-none shadow-blue-500/30"
+              : "text-muted hover:text-ink"
           }`}
         >
           Hrs
@@ -117,12 +120,9 @@ function SprintGoalSuccessCard({ currentProject }) {
         title="Sprint Goal Success"
         infoText="Sprint goal success rate tracking"
         headerRight={headerRight}
-        className="col-span-12 md:col-span-4 min-h-[320px]"
+        className="q-card--chart"
       >
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-400 gap-2">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading Goal Data...</span>
-        </div>
+        <EmptyState loading />
       </DashboardCard>
     );
   }
@@ -133,11 +133,9 @@ function SprintGoalSuccessCard({ currentProject }) {
         title="Sprint Goal Success"
         infoText="Sprint goal success rate tracking"
         headerRight={headerRight}
-        className="col-span-12 md:col-span-4 min-h-[320px]"
+        className="q-card--chart"
       >
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-500 gap-2">
-          <span className="text-sm font-medium">No sprint goal data available</span>
-        </div>
+        <EmptyState title="No sprint goal data available" />
       </DashboardCard>
     );
   }
@@ -164,7 +162,7 @@ function SprintGoalSuccessCard({ currentProject }) {
       title="Sprint Goal Success"
       infoText="Sprint goal success rate tracking"
       headerRight={headerRight}
-      className="col-span-12 md:col-span-4 min-h-[320px]"
+      className="q-card--chart"
     >
       <div className="flex flex-col h-full justify-between pt-1 pb-2 px-1 relative">
         <div className="relative flex-1 w-full grid grid-cols-6 gap-2 px-2 pt-7 mt-3 pb-1 select-none min-h-[200px]">
@@ -183,7 +181,7 @@ function SprintGoalSuccessCard({ currentProject }) {
                 onMouseLeave={() => setHoverIndex(null)}
               >
                 <div className="pt-1 pb-2 shrink-0">
-                  <div className="w-4 h-4 rounded-full border border-red-500/80 text-red-500 flex items-center justify-center text-[10px] font-bold leading-none select-none">
+                  <div className="w-4 h-4 rounded-full border border-danger/80 text-danger flex items-center justify-center text-[12px] font-bold leading-none select-none">
                     ⊗
                   </div>
                 </div>
@@ -191,13 +189,13 @@ function SprintGoalSuccessCard({ currentProject }) {
                 <div className="flex items-end gap-1.5 h-[155px] w-full justify-center">
                   <div
                     className={`w-2 md:w-2.5 rounded-t-xs transition-all duration-200 ${
-                      isHovered ? "bg-[#3b82f6] brightness-125 shadow-md shadow-blue-500/50" : "bg-[#3b82f6]"
+                      isHovered ? "bg-accent brightness-125 shadow-none shadow-blue-500/50" : "bg-accent"
                     }`}
                     style={{ height: `${committedPct}%` }}
                   />
                   <div
                     className={`w-2 md:w-2.5 rounded-t-xs transition-all duration-200 ${
-                      isHovered ? "bg-[#22c55e] brightness-125 shadow-md shadow-emerald-500/50" : "bg-[#22c55e]"
+                      isHovered ? "bg-success brightness-125 shadow-none shadow-emerald-500/50" : "bg-success"
                     }`}
                     style={{ height: `${completedPct}%` }}
                   />
@@ -209,17 +207,17 @@ function SprintGoalSuccessCard({ currentProject }) {
                       isLeftSide ? "left-1/2 ml-2" : "right-1/2 mr-2"
                     } animate-in fade-in zoom-in-95`}
                   >
-                    <div className="bg-[#141419]/95 border border-white/15 text-white px-3.5 py-2.5 rounded-xl shadow-2xl space-y-1.5 backdrop-blur-md whitespace-nowrap min-w-[140px]">
-                      <div className="text-xs font-bold text-white tracking-wide border-b border-white/10 pb-1">
+                    <div className="bg-raised/95 border border-ink/15 text-ink px-3.5 py-2.5 rounded-xl shadow-none space-y-1.5 backdrop-blur-md whitespace-nowrap min-w-[140px]">
+                      <div className="text-xs font-bold text-ink tracking-wide border-b border-ink/10 pb-1">
                         {item.sprintName}
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-medium text-slate-200">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6] shrink-0" />
-                        <span>Committed: <span className="font-bold text-white">{item.committed}</span></span>
+                      <div className="flex items-center gap-2 text-xs font-medium text-ink">
+                        <span className="w-2.5 h-2.5 rounded-full bg-accent shrink-0" />
+                        <span>Committed: <span className="font-bold text-ink">{item.committed}</span></span>
                       </div>
-                      <div className="flex items-center gap-2 text-xs font-medium text-slate-200">
-                        <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e] shrink-0" />
-                        <span>Completed: <span className="font-bold text-white">{item.completed}</span></span>
+                      <div className="flex items-center gap-2 text-xs font-medium text-ink">
+                        <span className="w-2.5 h-2.5 rounded-full bg-success shrink-0" />
+                        <span>Completed: <span className="font-bold text-ink">{item.completed}</span></span>
                       </div>
                     </div>
                   </div>
@@ -229,14 +227,14 @@ function SprintGoalSuccessCard({ currentProject }) {
           })}
         </div>
 
-        <div className="flex items-center justify-center gap-6 pt-2 border-t border-white/5 text-xs font-semibold text-slate-300 shrink-0">
+        <div className="flex items-center justify-center gap-6 pt-2 border-t border-ink/5 text-xs font-semibold text-ink shrink-0">
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#3b82f6]" />
-            <span className="text-slate-300">Committed</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-accent" />
+            <span className="text-ink">Committed</span>
           </div>
           <div className="flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-[#22c55e]" />
-            <span className="text-slate-300">Completed</span>
+            <span className="w-2.5 h-2.5 rounded-full bg-success" />
+            <span className="text-ink">Completed</span>
           </div>
         </div>
       </div>

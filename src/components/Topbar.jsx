@@ -6,8 +6,13 @@ import {
   RefreshCw,
   Search,
   Sun,
+  Moon,
+  PanelLeftClose,
+  PanelLeftOpen,
   LayoutGrid,
-  LogOut
+  Menu,
+  LogOut,
+  Building2
 } from "lucide-react";
 
 function formatLastSynced(lastSyncedDate) {
@@ -15,7 +20,7 @@ function formatLastSynced(lastSyncedDate) {
   return `Last synced: ${lastSyncedDate.toLocaleDateString()} ${lastSyncedDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
 }
 
-function Topbar({ user, companyName, logout, currentPage }) {
+function Topbar({ user, companyName, logout, currentPage, onToggleNav, navOpen, sidebarCollapsed, onToggleSidebar, theme, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState(() => {
@@ -29,12 +34,23 @@ function Topbar({ user, companyName, logout, currentPage }) {
   const [selectedSprintId, setSelectedSprintId] = useState("");
   const [activeSprint, setActiveSprint] = useState(null);
 
+  const [releases, setReleases] = useState([]);
+  const [selectedReleaseName, setSelectedReleaseName] = useState("");
+
   const [selectedRepo, setSelectedRepo] = useState("All repositories");
   const [repos, setRepos] = useState([]);
-  const [selectedFilterType, setSelectedFilterType] = useState("Sprint");
+  const [selectedFilterType, setSelectedFilterType] = useState(() => localStorage.getItem("selectedFilterType") || "Sprint");
   const [selectedDev, setSelectedDev] = useState("Select Developer");
 
   const compName = companyName || localStorage.getItem("companyName") || "Organization";
+
+  useEffect(() => {
+    if (currentPage === "release") {
+      setSelectedFilterType("Release");
+      localStorage.setItem("selectedFilterType", "Release");
+      window.dispatchEvent(new CustomEvent("filterTypeChanged", { detail: "Release" }));
+    }
+  }, [currentPage]);
 
   // --- Project Data ---
   const handleProjectChange = (boardId) => {
@@ -79,30 +95,29 @@ function Topbar({ user, companyName, logout, currentPage }) {
 
     const handleUpdate = () => fetchProjects();
     window.addEventListener("jiraProjectsUpdated", handleUpdate);
-    return () => window.removeEventListener("jiraProjectsUpdated", handleUpdate);
+    window.addEventListener("jiraConnectionUpdated", handleUpdate);
+    window.addEventListener("jiraSyncCompleted", handleUpdate);
+    return () => {
+      window.removeEventListener("jiraProjectsUpdated", handleUpdate);
+      window.removeEventListener("jiraConnectionUpdated", handleUpdate);
+      window.removeEventListener("jiraSyncCompleted", handleUpdate);
+    };
   }, [compName]);
 
   // --- GitHub Repositories Data ---
   const fetchRepos = () => {
     if (!compName) return;
 
-    fetch(`http://127.0.0.1:8000/github/db-repos/${compName}`)
+    fetch(`http://127.0.0.1:8000/github/repos/${compName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
-        if (data?.repos && Array.isArray(data.repos) && data.repos.length > 0) {
+        if (data?.repos && Array.isArray(data.repos)) {
           setRepos(data.repos);
         } else {
-          fetch(`http://127.0.0.1:8000/github/repos/${compName}`)
-            .then((res) => res.ok && res.json())
-            .then((apiData) => {
-              if (apiData?.repos && Array.isArray(apiData.repos)) {
-                setRepos(apiData.repos);
-              }
-            })
-            .catch(() => {});
+          setRepos([]);
         }
       })
-      .catch(() => { });
+      .catch(() => setRepos([]));
   };
 
   useEffect(() => {
@@ -118,30 +133,57 @@ function Topbar({ user, companyName, logout, currentPage }) {
 
 
   // --- Sprint Data ---
-  useEffect(() => {
+  const fetchSprints = () => {
     if (!compName || !selectedBoard) return;
 
-    // First try DB sprints for immediate loading
-    fetch(`http://127.0.0.1:8000/jira/db-sprints/${compName}?board_id=${selectedBoard}`)
+    fetch(`http://127.0.0.1:8000/jira/sprints/${compName}?board_id=${selectedBoard}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data?.sprints?.length > 0) {
           setSprints(data.sprints);
         } else {
-          // Fallback to Jira API endpoint
-          fetch(`http://127.0.0.1:8000/jira/sprints/${compName}?project_id=${selectedBoard}`)
-            .then((res) => res.ok && res.json())
-            .then((apiData) => {
-              if (apiData?.sprints?.length > 0) {
-                setSprints(apiData.sprints);
-              } else {
-                setSprints([]);
-              }
-            })
-            .catch(() => setSprints([]));
+          setSprints([]);
         }
       })
       .catch(() => setSprints([]));
+  };
+
+  useEffect(() => {
+    fetchSprints();
+    const handleUpdate = () => fetchSprints();
+    window.addEventListener("jiraSyncCompleted", handleUpdate);
+    window.addEventListener("jiraSprintsUpdated", handleUpdate);
+    return () => {
+      window.removeEventListener("jiraSyncCompleted", handleUpdate);
+      window.removeEventListener("jiraSprintsUpdated", handleUpdate);
+    };
+  }, [compName, selectedBoard]);
+
+  // --- Releases Data ---
+  const fetchReleases = () => {
+    if (!compName || !selectedBoard) return;
+
+    fetch(`http://127.0.0.1:8000/jira/releases/${compName}?project_id=${selectedBoard}`)
+      .then((res) => res.ok && res.json())
+      .then((data) => {
+        if (data?.releases?.length > 0) {
+          setReleases(data.releases);
+        } else {
+          setReleases([]);
+        }
+      })
+      .catch(() => setReleases([]));
+  };
+
+  useEffect(() => {
+    fetchReleases();
+    const handleUpdate = () => fetchReleases();
+    window.addEventListener("jiraSyncCompleted", handleUpdate);
+    window.addEventListener("jiraReleasesUpdated", handleUpdate);
+    return () => {
+      window.removeEventListener("jiraSyncCompleted", handleUpdate);
+      window.removeEventListener("jiraReleasesUpdated", handleUpdate);
+    };
   }, [compName, selectedBoard]);
 
   // Dynamic Sprint Filtering based on selectedFilterType
@@ -153,35 +195,65 @@ function Topbar({ user, companyName, logout, currentPage }) {
   });
 
   useEffect(() => {
-    if (filteredSprints.length > 0) {
-      const savedSprint = localStorage.getItem("selectedSprint");
-      let initialSprint = null;
-
-      if (savedSprint) {
-        try {
-          const parsed = JSON.parse(savedSprint);
-          initialSprint = filteredSprints.find(
-            (s) => String(s.sprintId || s.id || s.name) === String(parsed?.sprintId || parsed?.id || parsed?.name)
-          );
-        } catch {}
+    if (selectedFilterType === "Release") {
+      if (releases.length > 0) {
+        const savedReleaseStr = localStorage.getItem("selectedRelease");
+        let initialRelease = null;
+        if (savedReleaseStr) {
+          try {
+            const parsed = JSON.parse(savedReleaseStr);
+            initialRelease = releases.find((r) => String(r.releaseName || r.name) === String(parsed?.releaseName || parsed?.name || parsed));
+          } catch {}
+        }
+        if (!initialRelease) {
+          initialRelease = releases[0];
+        }
+        const relName = String(initialRelease.releaseName || initialRelease.name);
+        setSelectedReleaseName(relName);
+        const relObj = { ...initialRelease, id: relName, name: relName, isRelease: true, filterType: "Release" };
+        localStorage.setItem("selectedRelease", JSON.stringify(relObj));
+        localStorage.setItem("selectedFilterType", "Release");
+        window.dispatchEvent(new CustomEvent("sprintSelected", { detail: relObj }));
+        window.dispatchEvent(new CustomEvent("releaseSelected", { detail: relObj }));
+        window.dispatchEvent(new CustomEvent("filterTypeChanged", { detail: "Release" }));
+      } else {
+        setSelectedReleaseName("");
+        localStorage.setItem("selectedFilterType", "Release");
+        window.dispatchEvent(new CustomEvent("filterTypeChanged", { detail: "Release" }));
       }
-
-      if (!initialSprint) {
-        initialSprint = filteredSprints.find((s) => s.state === "active") || filteredSprints[0];
-      }
-
-      const sprintIdStr = String(initialSprint.sprintId || initialSprint.id || initialSprint.name);
-      setSelectedSprintId(sprintIdStr);
-      setActiveSprint(initialSprint);
-      localStorage.setItem("selectedSprint", JSON.stringify(initialSprint));
-      window.dispatchEvent(new CustomEvent("sprintSelected", { detail: initialSprint }));
     } else {
-      setSelectedSprintId("");
-      setActiveSprint(null);
-      localStorage.removeItem("selectedSprint");
-      window.dispatchEvent(new CustomEvent("sprintSelected", { detail: null }));
+      localStorage.setItem("selectedFilterType", selectedFilterType);
+      window.dispatchEvent(new CustomEvent("filterTypeChanged", { detail: selectedFilterType }));
+      if (filteredSprints.length > 0) {
+        const savedSprint = localStorage.getItem("selectedSprint");
+        let initialSprint = null;
+
+        if (savedSprint) {
+          try {
+            const parsed = JSON.parse(savedSprint);
+            initialSprint = filteredSprints.find(
+              (s) => String(s.sprintId || s.id || s.name) === String(parsed?.sprintId || parsed?.id || parsed?.name)
+            );
+          } catch {}
+        }
+
+        if (!initialSprint) {
+          initialSprint = filteredSprints.find((s) => s.state === "active") || filteredSprints[0];
+        }
+
+        const sprintIdStr = String(initialSprint.sprintId || initialSprint.id || initialSprint.name);
+        setSelectedSprintId(sprintIdStr);
+        setActiveSprint(initialSprint);
+        localStorage.setItem("selectedSprint", JSON.stringify(initialSprint));
+        window.dispatchEvent(new CustomEvent("sprintSelected", { detail: initialSprint }));
+      } else {
+        setSelectedSprintId("");
+        setActiveSprint(null);
+        localStorage.removeItem("selectedSprint");
+        window.dispatchEvent(new CustomEvent("sprintSelected", { detail: null }));
+      }
     }
-  }, [selectedFilterType, sprints]);
+  }, [selectedFilterType, sprints, releases]);
 
   const handleSprintSelect = (sprintId) => {
     setSelectedSprintId(sprintId);
@@ -193,6 +265,15 @@ function Topbar({ user, companyName, logout, currentPage }) {
       localStorage.removeItem("selectedSprint");
     }
     window.dispatchEvent(new CustomEvent("sprintSelected", { detail: found || null }));
+  };
+
+  const handleReleaseSelect = (relName) => {
+    setSelectedReleaseName(relName);
+    const found = releases.find((r) => String(r.releaseName || r.name) === String(relName));
+    const relObj = found ? { ...found, id: relName, name: relName, isRelease: true, filterType: "Release" } : { id: relName, name: relName, isRelease: true, filterType: "Release" };
+    localStorage.setItem("selectedRelease", JSON.stringify(relObj));
+    window.dispatchEvent(new CustomEvent("sprintSelected", { detail: relObj }));
+    window.dispatchEvent(new CustomEvent("releaseSelected", { detail: relObj }));
   };
 
 
@@ -243,85 +324,95 @@ function Topbar({ user, companyName, logout, currentPage }) {
   };
 
   return (
-    <header className="bg-[#0c0c0e]/95 backdrop-blur-xl border-b border-[#1e1e24] flex flex-col shrink-0 font-sans select-none">
+    <header className="q-topbar">
       {/* Top Navbar */}
-      <div className="h-18 lg:h-22 px-6 md:px-10 flex items-center justify-between gap-8 border-b border-[#1e1e24]">
-        <div className="flex items-center gap-10">
+      <div className="q-topline">
+        <div className="q-top-left"><button className="q-icon-button q-desktop-toggle" onClick={onToggleSidebar} aria-label={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} title={sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"} aria-expanded={!sidebarCollapsed} aria-controls="app-navigation">{sidebarCollapsed ? <PanelLeftOpen size={20} /> : <PanelLeftClose size={20} />}</button><button className="q-icon-button q-mobile-toggle" onClick={onToggleNav} aria-label="Open navigation" aria-expanded={navOpen} aria-controls="app-navigation"><Menu size={20} /></button>
           <div className="flex flex-col">
-            <h1 className="text-xl md:text-2xl font-extrabold text-white tracking-tight leading-none">
-              {currentPage === "standup" ? "Standup" : "QMetry360"}
-            </h1>
-            <span className="text-xs font-semibold text-[#888888] tracking-wider leading-tight mt-1.5">
+            <div className="q-top-name">
+              {{ "standup": "Standup", "qmetry360": "Release readiness", "eng-metrics": "Engineering metrics", "tech-quality": "Tech quality", "release": "Release", "integration": "Integrations", "settings": "Settings", "capacity-planning": "Capacity planning", "roles-and-billing": "Roles & rate card" }[currentPage] || "QMetrix360"}
+            </div>
+            <span className="q-top-sub">
               Quality Quantified
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-3 bg-[#141418] border border-[#24242c] focus-within:border-white/40 rounded-full px-5 py-2.5 w-64 md:w-80 text-sm text-[#a1a1a1] transition shadow-inner">
-            <Search size={18} className="text-[#777777] shrink-0" />
+          <div className="q-search">
+            <Search size={18} className="text-muted shrink-0" />
             <input
               type="text"
-              placeholder="Search..."
-              className="bg-transparent border-none outline-none text-sm text-white placeholder-[#666666] w-full"
+              placeholder="Search workspace…" aria-label="Search workspace"
+              className="bg-transparent border-none outline-none text-sm text-ink placeholder-muted w-full"
             />
           </div>
         </div>
 
-        <div className="flex items-center gap-4 md:gap-6">
+        <div className="q-top-actions">
           <button
             onClick={handleSync}
             disabled={syncing}
-            className="flex items-center gap-2.5 bg-white hover:bg-neutral-200 text-black rounded-full px-5 py-2.5 text-xs md:text-sm font-bold transition cursor-pointer active:scale-95 shadow-md"
+            className="q-sync" title="Sync workspace data"
           >
-            <RefreshCw size={16} className={syncing ? "animate-spin text-black" : "text-black"} />
+            <RefreshCw size={16} className={syncing ? "animate-spin" : ""} />
             <span className="whitespace-nowrap">
               {syncing ? "Syncing..." : formatLastSynced(lastSynced)}
             </span>
           </button>
 
-          <button title="Toggle Theme" className="text-[#a1a1a1] hover:text-white p-2.5 rounded-full hover:bg-[#18181d] transition cursor-pointer">
-            <Sun size={20} />
+          <button onClick={onToggleTheme} title={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} aria-label={theme === "dark" ? "Switch to light theme" : "Switch to dark theme"} className="q-icon-button q-theme-toggle">
+            {theme === "dark" ? <Sun size={20} /> : <Moon size={20} />}
           </button>
 
-          <button title="Notifications" className="text-[#a1a1a1] hover:text-white p-2.5 rounded-full hover:bg-[#18181d] transition relative cursor-pointer">
+          <button title="Notifications" className="q-icon-button">
             <Bell size={20} />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-white shadow-sm" />
+
           </button>
 
-          <button title="Apps" className="text-[#a1a1a1] hover:text-white p-2.5 rounded-full hover:bg-[#18181d] transition cursor-pointer">
+          <button title="Apps" className="q-icon-button">
             <LayoutGrid size={20} />
           </button>
 
           <div className="relative">
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-3 bg-[#141418] border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-sm text-white font-bold transition cursor-pointer shadow-sm"
+              className="q-profile" aria-label="Account menu" aria-expanded={menuOpen}
             >
               {user?.picture ? (
                 <img
                   src={user.picture}
                   alt={user.name || "User"}
-                  className="w-7 h-7 rounded-full object-cover ring-1 ring-white/20"
+                  className="w-7 h-7 rounded-full object-cover ring-1 ring-ink/20"
                 />
               ) : (
-                <div className="w-7 h-7 rounded-full bg-white text-black flex items-center justify-center font-bold text-xs shadow-inner">
+                <div className="w-7 h-7 rounded-full bg-inverse text-on-inverse flex items-center justify-center font-bold text-xs shadow-none">
                   {user?.name?.charAt(0)?.toUpperCase() || "U"}
                 </div>
               )}
-              <span className="max-w-[140px] truncate text-xs md:text-sm font-bold">
+              <span className="q-profile-name">
                 {user?.name || user?.email?.split("@")[0] || "User"}
               </span>
-              <ChevronDown size={16} className="text-[#888888]" />
+              <ChevronDown size={16} className="text-muted" />
             </button>
 
             {menuOpen && (
-              <div className="absolute right-0 mt-3 w-60 rounded-2xl bg-[#141418] border border-[#24242c] shadow-2xl overflow-hidden z-50 p-2">
-                <div className="px-3 py-2 border-b border-[#24242c] mb-1">
-                  <p className="text-sm font-bold text-white truncate">{user?.name || "User"}</p>
-                  <p className="text-xs text-[#a1a1a1] truncate">{user?.email}</p>
+              <div className="absolute right-0 mt-3 w-60 rounded-2xl bg-control border border-line shadow-none overflow-hidden z-50 p-2 flex flex-col gap-1">
+                <div className="px-3 py-2 border-b border-line mb-1">
+                  <p className="text-sm font-bold text-ink truncate">{user?.name || "User"}</p>
+                  <p className="text-xs text-muted truncate">{user?.email}</p>
                 </div>
                 <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent("switchOrganization"));
+                  }}
+                  className="w-full px-3 py-2 flex items-center gap-3 text-left text-ink hover:bg-hover rounded-xl transition-colors text-xs font-bold cursor-pointer"
+                >
+                  <Building2 size={16} className="text-muted" />
+                  <span>Switch / New Organization</span>
+                </button>
+                <button
                   onClick={() => logout?.({ logoutParams: { returnTo: window.location.origin } })}
-                  className="w-full px-3 py-2.5 flex items-center gap-3 text-left text-red-400 hover:bg-red-950/30 rounded-xl transition-colors text-xs font-bold cursor-pointer"
+                  className="w-full px-3 py-2 flex items-center gap-3 text-left text-danger hover:bg-red-950/30 rounded-xl transition-colors text-xs font-bold cursor-pointer"
                 >
                   <LogOut size={16} />
                   <span>Logout</span>
@@ -334,51 +425,55 @@ function Topbar({ user, companyName, logout, currentPage }) {
 
       {/* Filter Sub-bar */}
       {(currentPage === "qmetry360" || currentPage === "standup") && (
-        <div className="px-6 md:px-10 py-4 bg-[#09090b]/80 flex flex-col gap-3.5 border-b border-[#1e1e24]">
-          <div className="flex flex-wrap items-center justify-between gap-6 text-sm">
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="w-36 md:w-40 flex items-center justify-between bg-[#141418] border border-[#24242c] rounded-full px-4 py-2 font-bold text-white shadow-sm text-xs md:text-sm truncate">
+        <div className="q-filterbar" aria-label="Workspace filters">
+          <div className="q-filter-row">
+            <div className="q-filter-primary">
+              <div
+                onClick={() => window.dispatchEvent(new CustomEvent("switchOrganization"))}
+                className="q-workspace-chip cursor-pointer hover:border-ink/40 transition-colors"
+                title="Click to switch or create organization"
+              >
                 <span className="truncate">{compName}</span>
-                <ChevronDown size={14} className="text-[#888888] shrink-0 ml-1" />
+                <ChevronDown size={14} className="text-muted shrink-0 ml-1" />
               </div>
 
               <select
-                value={selectedBoard}
+                aria-label="Project" value={selectedBoard}
                 onChange={(e) => handleProjectChange(e.target.value)}
-                className="w-52 md:w-60 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+                className="w-52 md:w-60 bg-control text-ink border border-line hover:border-ink/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
               >
                 {projects.length > 0 ? (
                   projects.map((p) => (
-                    <option key={p.projectId} value={p.projectId} className="bg-[#141418]">
+                    <option key={p.projectId || p.projectKey} value={p.projectId || p.projectKey} className="bg-control">
                       {p.projectName} ({p.projectKey})
                     </option>
                   ))
                 ) : (
-                  <option value="" className="bg-[#141418]">No Jira Projects</option>
+                  <option value="" className="bg-control">No Jira Projects</option>
                 )}
               </select>
 
               <select
-                value={selectedRepo}
+                aria-label="Repository" value={selectedRepo}
                 onChange={(e) => {
                   setSelectedRepo(e.target.value);
                   localStorage.setItem("selectedRepo", e.target.value);
                   window.dispatchEvent(new CustomEvent("repoSelected", { detail: e.target.value }));
                 }}
-                className="w-40 md:w-48 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+                className="w-40 md:w-48 bg-control text-ink border border-line hover:border-ink/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
               >
                 <option value="All repositories">All repositories</option>
                 {repos.map((r) => (
-                  <option key={r.repoId || r.id || r.name} value={r.name} className="bg-[#141418]">
+                  <option key={r.repoId || r.id || r.name} value={r.name} className="bg-control">
                     {r.name || r.fullName}
                   </option>
                 ))}
               </select>
 
               <select
-                value={selectedFilterType}
+                aria-label="Sprint status" value={selectedFilterType}
                 onChange={(e) => setSelectedFilterType(e.target.value)}
-                className="w-32 md:w-36 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-3.5 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm"
+                className="w-32 md:w-36 bg-control text-ink border border-line hover:border-ink/30 rounded-full px-3.5 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm"
               >
                 <option value="Sprint">All Sprints</option>
                 <option value="Active">Active Sprints</option>
@@ -388,72 +483,93 @@ function Topbar({ user, companyName, logout, currentPage }) {
                 <option value="Release">Release</option>
               </select>
 
-              <select
-                value={selectedSprintId}
-                onChange={(e) => handleSprintSelect(e.target.value)}
-                className="w-48 md:w-56 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
-              >
-                {filteredSprints.length > 0 ? (
-                  filteredSprints.map((s) => {
-                    const sVal = String(s.sprintId || s.id || s.name);
-                    return (
-                      <option key={sVal} value={sVal} className="bg-[#141418]">
-                        {s.name} {s.state ? `(${s.state})` : ""}
-                      </option>
-                    );
-                  })
-                ) : (
-                  <option value="" className="bg-[#141418]">No Matching Sprints</option>
-                )}
-              </select>
+              {selectedFilterType === "Release" ? (
+                <select
+                  aria-label="Release" value={selectedReleaseName}
+                  onChange={(e) => handleReleaseSelect(e.target.value)}
+                  className="w-48 md:w-56 bg-control text-ink border border-line hover:border-ink/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+                >
+                  {releases.length > 0 ? (
+                    releases.map((r) => {
+                      const rVal = String(r.releaseName || r.name);
+                      return (
+                        <option key={rVal} value={rVal} className="bg-control">
+                          {rVal} {r.status ? `(${r.status})` : ""}
+                        </option>
+                      );
+                    })
+                  ) : (
+                    <option value="" className="bg-control">No Jira Releases</option>
+                  )}
+                </select>
+              ) : (
+                <select
+                  aria-label="Sprint" value={selectedSprintId}
+                  onChange={(e) => handleSprintSelect(e.target.value)}
+                  className="w-48 md:w-56 bg-control text-ink border border-line hover:border-ink/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+                >
+                  {filteredSprints.length > 0 ? (
+                    filteredSprints.map((s) => {
+                      const sVal = String(s.sprintId || s.id || s.name);
+                      return (
+                        <option key={sVal} value={sVal} className="bg-control">
+                          {s.name} {s.state ? `(${s.state})` : ""}
+                        </option>
+                      );
+                    })
+                  ) : (
+                    <option value="" className="bg-control">No Matching Sprints</option>
+                  )}
+                </select>
+              )}
             </div>
 
-            <div className="flex items-center gap-4">
-              <button className="w-28 md:w-32 bg-[#141418] hover:bg-[#1a1a20] border border-[#24242c] text-white px-3.5 py-2 rounded-full text-xs md:text-sm font-bold cursor-pointer transition shadow-sm truncate">
+            <div className="q-filter-secondary">
+              <button className="w-28 md:w-32 bg-control hover:bg-hover border border-line text-ink px-3.5 py-2 rounded-full text-xs md:text-sm font-bold cursor-pointer transition shadow-sm truncate">
                 Multi Project
               </button>
 
               <select
-                value={selectedDev}
+                aria-label="Developer" value={selectedDev}
                 onChange={(e) => setSelectedDev(e.target.value)}
-                className="w-40 md:w-48 bg-[#141418] text-white border border-[#24242c] hover:border-white/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
+                className="w-40 md:w-48 bg-control text-ink border border-line hover:border-ink/30 rounded-full px-4 py-2 text-xs md:text-sm font-bold focus:outline-none cursor-pointer transition shadow-sm truncate"
               >
                 <option value="Select Developer">Select Developer</option>
                 <option value={user?.name || "Developer"}>{user?.name || "Developer"}</option>
               </select>
 
-              <button className="w-24 md:w-28 bg-[#141418] hover:bg-[#1a1a20] border border-[#24242c] text-white px-3.5 py-2 rounded-full text-xs md:text-sm font-bold flex items-center justify-between cursor-pointer transition shadow-sm">
+              <button className="w-24 md:w-28 bg-control hover:bg-hover border border-line text-ink px-3.5 py-2 rounded-full text-xs md:text-sm font-bold flex items-center justify-between cursor-pointer transition shadow-sm">
                 <span>Team</span>
                 <ChevronDown size={16} />
               </button>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-8 text-xs md:text-sm font-bold pt-2.5 border-t border-[#1e1e24]">
-            <span className="text-[#999999] flex items-center gap-2">
+          <div className="q-sprint-context">
+            <span className="text-muted flex items-center gap-2">
               Sprint Status:
-              <span className={`font-extrabold uppercase px-2.5 py-0.5 rounded-full text-xs tracking-wider ${activeSprint?.state === "active"
-                  ? "bg-emerald-500/15 text-emerald-400 border border-emerald-500/30"
+              <span className={`font-semibold uppercase px-2.5 py-0.5 rounded-full text-xs tracking-wider ${activeSprint?.state === "active"
+                  ? "bg-success/15 text-success border border-success/30"
                   : activeSprint?.state === "closed"
-                    ? "bg-neutral-800 text-neutral-300 border border-neutral-700"
-                    : "bg-blue-500/15 text-blue-400 border border-blue-500/30"
+                    ? "bg-control text-ink border border-line"
+                    : "bg-accent/15 text-accent border border-accent/30"
                 }`}>
                 {activeSprint?.state || "N/A"}
               </span>
             </span>
 
-            <span className="text-[#999999]">
+            <span className="text-muted">
               Sprint Start & End Date:{" "}
-              <span className="font-extrabold text-white ml-1">
+              <span className="font-semibold text-ink ml-1">
                 {activeSprint?.startDate && activeSprint?.endDate
                   ? `${formatDateStr(activeSprint.startDate)} - ${formatDateStr(activeSprint.endDate)}`
                   : "Not Created"}
               </span>
             </span>
 
-            <span className="text-[#999999]">
+            <span className="text-muted">
               Actual Sprint End Date:{" "}
-              <span className="font-extrabold text-white ml-1">
+              <span className="font-semibold text-ink ml-1">
                 {activeSprint?.completeDate
                   ? formatDateStr(activeSprint.completeDate)
                   : activeSprint?.state === "active"

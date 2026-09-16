@@ -1,26 +1,61 @@
-import { useEffect, useState } from "react";
+import { Modal, PlaceholderPage } from "./components/ui/ProductUI";
+import { useEffect, useLayoutEffect, useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
-import { Loader2 } from "lucide-react";
-import { Toaster } from "react-hot-toast";
+import { Loader2, X } from "lucide-react";
+import { Toaster, ToastBar, toast } from "react-hot-toast";
 
 import AuthPage from "./components/AuthPage";
 import Standup from "./components/Standup";
 import Layout from "./components/Layout";
 import OrganizationPage from "./Pages/OrganizationPage";
 import JiraIntegration from "./components/JiraIntegration";
+import AzureBoardsIntegration from "./components/AzureBoardsIntegration";
 import GitHubIntegration from "./components/GithubIntegration";
+import GitLabIntegration from "./components/GitlabIntegration";
 import IntegrationsPage from "./components/IntegrationsPage";
 import QMetry360 from "./components/QMetry360";
 import CapacityPlanning from "./Pages/CapacityPlanning";
 import RolesAndBilling from "./Pages/RolesAndBilling";
 
 function App() {
-  const [organizationCreated, setOrganizationCreated] = useState(false);
+  const [organizationCreated, setOrganizationCreated] = useState(() => Boolean(localStorage.getItem("companyName")));
+  const [devBypass, setDevBypass] = useState(() => localStorage.getItem("devBypass") === "true" || Boolean(localStorage.getItem("companyName")));
   const [currentPage, setCurrentPage] = useState("standup");
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("qmetrix-theme") === "light" ? "light" : "dark"; }
+    catch { return "dark"; }
+  });
+  useLayoutEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    try { localStorage.setItem("qmetrix-theme", theme); }
+    catch { /* A theme can still be selected without persistent storage. */ }
+  }, [theme]);
   const [activeModal, setActiveModal] = useState(null);
 
   const { isAuthenticated, user, logout, isLoading } = useAuth0();
+
+  const handleDevBypass = () => {
+    localStorage.setItem("companyName", "Demo Workspace");
+    localStorage.setItem("devBypass", "true");
+    setOrganizationCreated(true);
+    setDevBypass(true);
+  };
+
+  const handleSwitchOrganization = () => {
+    localStorage.removeItem("companyName");
+    localStorage.removeItem("devBypass");
+    localStorage.removeItem("currentProject");
+    localStorage.removeItem("selectedSprint");
+    localStorage.removeItem("selectedRelease");
+    setOrganizationCreated(false);
+    setDevBypass(false);
+  };
+
+  useEffect(() => {
+    const handleSwitch = () => handleSwitchOrganization();
+    window.addEventListener("switchOrganization", handleSwitch);
+    return () => window.removeEventListener("switchOrganization", handleSwitch);
+  }, []);
 
   // Auth & User Sync
   useEffect(() => {
@@ -42,11 +77,11 @@ function App() {
 
   if (isLoading) {
     return (
-      <div className="h-screen w-screen flex flex-col items-center justify-center bg-gradient-to-b from-[#0f0f12] via-[#08080a] to-[#000000] font-sans gap-5 relative overflow-hidden text-white">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-white/[0.03] rounded-full blur-3xl pointer-events-none" />
+      <div className="h-screen w-screen flex flex-col items-center justify-center bg-gradient-to-b from-surface via-canvas to-canvas font-sans gap-5 relative overflow-hidden text-ink">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-inverse/[0.03] rounded-full blur-3xl pointer-events-none" />
         <div className="relative z-10 flex flex-col items-center gap-4">
-          <Loader2 className="w-9 h-9 text-white animate-spin" />
-          <p className="text-xs font-semibold text-[#999999] animate-pulse tracking-[0.2em] uppercase">
+          <Loader2 className="w-9 h-9 text-ink animate-spin" />
+          <p className="text-xs font-semibold text-muted animate-pulse tracking-[0.2em] uppercase">
             Loading workspace...
           </p>
         </div>
@@ -55,23 +90,26 @@ function App() {
   }
 
   if (!organizationCreated) {
-    return <OrganizationPage onOrganizationCreated={() => setOrganizationCreated(true)} />;
+    return (
+      <OrganizationPage
+        onOrganizationCreated={() => setOrganizationCreated(true)}
+        onDevBypass={handleDevBypass}
+      />
+    );
   }
 
-  if (!isAuthenticated) {
-    return <AuthPage />;
+  if (!isAuthenticated && !devBypass) {
+    return <AuthPage onDevBypass={() => setDevBypass(true)} />;
   }
 
   const companyName = localStorage.getItem("companyName");
+  const activeUser = user || {
+    name: "Demo User",
+    email: "demo@localhost",
+    picture: "",
+  };
 
-  const ComingSoon = ({ title }) => (
-    <div className="max-w-7xl mx-auto p-6 md:p-8 lg:p-10">
-      <div className="bg-[#0c0c0e]/90 backdrop-blur-xl rounded-3xl p-8 border border-[#1e1e24] shadow-2xl">
-        <h1 className="text-2xl font-bold text-white tracking-tight">{title}</h1>
-        <p className="mt-2 text-[#999999] font-normal leading-relaxed">This page is coming soon.</p>
-      </div>
-    </div>
-  );
+  const ComingSoon = PlaceholderPage;
 
   // Main Navigation Router
   const renderPage = () => {
@@ -81,64 +119,37 @@ function App() {
       case "eng-metrics":
         return <ComingSoon title="Eng Metrics" />;
       case "standup":
-        return <Standup user={user} logout={logout} companyName={companyName} onOpenCapacityDetails={() => setCurrentPage("capacity-planning")} />;
+        return <Standup user={activeUser} logout={logout} companyName={companyName} onOpenCapacityDetails={() => setCurrentPage("capacity-planning")} />;
       case "capacity-planning":
-        return <CapacityPlanning user={user} onBack={() => setCurrentPage("standup")} />;
+        return <CapacityPlanning user={activeUser} onBack={() => setCurrentPage("standup")} />;
       case "roles-and-billing":
         return <RolesAndBilling onBack={() => setCurrentPage("integration")} />;
       case "tech-quality":
         return <ComingSoon title="Tech Quality" />;
-      case "release":
-        return <ComingSoon title="Release" />;
       case "integration":
         return (
           <>
             <IntegrationsPage
               onOpenJiraModal={() => setActiveModal('jira')}
+              onOpenAzureBoardsModal={() => setActiveModal('azure-boards')}
               onOpenGithubModal={() => setActiveModal('github')}
+              onOpenGitlabModal={() => setActiveModal('gitlab')}
               onOpenCapacityPlanning={() => setCurrentPage("capacity-planning")}
               onOpenRolesAndBilling={() => setCurrentPage("roles-and-billing")}
             />
 
-            {activeModal && (
-              <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
-                {activeModal === 'jira' && (
-                  <JiraIntegration onClose={() => setActiveModal(null)} />
-                )}
-                {activeModal === 'github' && (
-                  <div className="relative w-full max-w-2xl bg-[#0c0c0e]/95 border border-[#1e1e24] rounded-3xl shadow-2xl overflow-hidden flex flex-col">
-                    <div className="flex justify-between items-center p-5 border-b border-[#1e1e24] bg-[#141418]">
-                      <h3 className="text-lg font-bold text-white flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-white shadow-sm shadow-white/50" />
-                        GitHub Integration
-                      </h3>
-                      <button
-                        onClick={() => setActiveModal(null)}
-                        className="text-[#999999] hover:text-white hover:bg-[#18181d] p-2 rounded-full transition-colors cursor-pointer"
-                      >
-                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                      </button>
-                    </div>
-                    <div className="p-6 overflow-y-auto max-h-[80vh]">
-                      <GitHubIntegration companyName={companyName} />
-                    </div>
-                  </div>
-                )}
+            {activeModal && <Modal title={{jira:"Jira connection","azure-boards":"Azure Boards connection",github:"GitHub connection",gitlab:"GitLab connection"}[activeModal]} onClose={() => setActiveModal(null)}>
+              <div className="q-connection">
+                {activeModal === 'jira' && <JiraIntegration embedded onClose={() => setActiveModal(null)} />}
+                {activeModal === 'azure-boards' && <AzureBoardsIntegration embedded onClose={() => setActiveModal(null)} />}
+                {activeModal === 'github' && <GitHubIntegration companyName={companyName} />}
+                {activeModal === 'gitlab' && <GitLabIntegration companyName={companyName} />}
               </div>
-            )}
+            </Modal>}
           </>
         );
       case "settings":
-        return (
-          <div className="max-w-7xl mx-auto p-6 md:p-8 lg:p-10">
-            <div className="bg-[#0c0c0e]/90 backdrop-blur-xl rounded-3xl p-8 border border-[#1e1e24] shadow-2xl">
-              <h1 className="text-2xl font-bold text-white tracking-tight">Settings</h1>
-              <p className="mt-2 text-[#999999] font-normal leading-relaxed">Manage your account and organization settings.</p>
-            </div>
-          </div>
-        );
+        return <PlaceholderPage title="Settings" description="Account and organization settings will be available here." />;
       default:
         return <ComingSoon title="Page not found" />;
     }
@@ -149,12 +160,86 @@ function App() {
     <Layout
       currentPage={currentPage}
       setCurrentPage={setCurrentPage}
-      sidebarOpen={sidebarOpen}
-      setSidebarOpen={setSidebarOpen}
-      user={user}
+      theme={theme}
+      onToggleTheme={() => setTheme(value => value === "dark" ? "light" : "dark")}
+      user={activeUser}
     >
       {renderPage()}
-      <Toaster position="top-right" toastOptions={{ duration: 3000 }} />
+      <Toaster
+        position="bottom-right"
+        containerStyle={{
+          bottom: 24,
+          right: 24,
+          zIndex: 9999,
+        }}
+        toastOptions={{
+          duration: 3500,
+          className: "q-toast",
+          style: {
+            background: "var(--bg-surface)",
+            color: "var(--text-primary)",
+            border: "1px solid var(--border-default)",
+            borderRadius: "12px",
+            boxShadow: "0 16px 36px -6px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--border-default)",
+            fontFamily: "var(--font-sans)",
+            fontSize: "14px",
+            fontWeight: 500,
+            padding: "11px 15px",
+            maxWidth: "420px",
+            backdropFilter: "blur(16px)",
+            WebkitBackdropFilter: "blur(16px)",
+          },
+          success: {
+            className: "q-toast q-toast-success",
+            iconTheme: {
+              primary: "var(--color-success)",
+              secondary: "var(--bg-surface)",
+            },
+          },
+          error: {
+            className: "q-toast q-toast-error",
+            iconTheme: {
+              primary: "var(--color-danger)",
+              secondary: "var(--bg-surface)",
+            },
+          },
+          loading: {
+            className: "q-toast q-toast-loading",
+            iconTheme: {
+              primary: "var(--color-accent)",
+              secondary: "var(--bg-surface)",
+            },
+          },
+        }}
+      >
+        {(t) => (
+          <ToastBar
+            toast={t}
+            style={{
+              ...t.style,
+              animation: t.visible
+                ? "q-toast-enter 220ms var(--ease) forwards"
+                : "q-toast-exit 180ms var(--ease) forwards",
+            }}
+          >
+            {({ icon, message }) => (
+              <>
+                {icon}
+                <div className="q-toast-message">{message}</div>
+                {t.type !== "loading" && (
+                  <button
+                    onClick={() => toast.dismiss(t.id)}
+                    className="q-toast-close"
+                    aria-label="Close notification"
+                  >
+                    <X size={14} />
+                  </button>
+                )}
+              </>
+            )}
+          </ToastBar>
+        )}
+      </Toaster>
     </Layout>
   );
 }

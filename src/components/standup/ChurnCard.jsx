@@ -1,6 +1,8 @@
+import { Modal, EmptyState } from "../ui/ProductUI";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
-import { Info, X } from "lucide-react";
+import { Info } from "lucide-react";
 import DashboardCard from "./DashboardCard";
+import { getActiveTargetParams } from "../../utils/targetHelper";
 
 function getBezierPath(points) {
   if (!points || points.length === 0) return "";
@@ -19,9 +21,20 @@ function getBezierPath(points) {
   return d;
 }
 
-function SprintChurnModal({ onClose, currentProject, includeBugs }) {
+function SprintChurnModal({ onClose, currentProject, currentRelease, isRelease, includeBugs }) {
   const [churnRows, setChurnRows] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const filterType = localStorage.getItem("selectedFilterType") || "Sprint";
+  const isRelMode = filterType === "Release" || isRelease;
+
+  let relName = currentRelease;
+  if (!relName) {
+    try {
+      const parsed = JSON.parse(localStorage.getItem("selectedRelease") || "");
+      relName = parsed?.releaseName || parsed?.name || "";
+    } catch {}
+  }
 
   useEffect(() => {
     const companyName = localStorage.getItem("companyName");
@@ -34,13 +47,22 @@ function SprintChurnModal({ onClose, currentProject, includeBugs }) {
 
     const params = new URLSearchParams();
     if (currentProject) params.append("project_id", currentProject);
+    if (isRelMode && relName) params.append("release_name", relName);
     params.append("include_bugs", includeBugs);
 
     fetch(`http://127.0.0.1:8000/jira/churn-data/${companyName}?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.churnData && Array.isArray(data.churnData) && data.churnData.length > 0) {
-          const mapped = data.churnData.map((item) => ({
+          let list = data.churnData;
+          if (isRelMode) {
+            list = data.churnData.filter(
+              (item) =>
+                String(item.sprintId || "").toLowerCase().startsWith("release") ||
+                String(item.sprint || "").toLowerCase().startsWith("release")
+            );
+          }
+          const mapped = list.map((item) => ({
             sprintId: item.sprintId,
             sprint: item.sprint,
             issueType: "All",
@@ -56,7 +78,7 @@ function SprintChurnModal({ onClose, currentProject, includeBugs }) {
         setChurnRows([]);
       })
       .finally(() => setLoading(false));
-  }, [currentProject, includeBugs]);
+  }, [currentProject, includeBugs, currentRelease, isRelease]);
 
   const handleIssueTypeChange = (index, selectedType) => {
     setChurnRows((prev) => {
@@ -67,42 +89,21 @@ function SprintChurnModal({ onClose, currentProject, includeBugs }) {
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4 md:p-6 animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      <div
-        className="relative w-[90vw] max-w-[850px] bg-[#0c0c0e]/95 border border-[#1e1e24] rounded-2xl shadow-2xl overflow-hidden flex flex-col h-auto max-h-[75vh]"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex justify-between items-center px-6 py-3 border-b border-[#1e1e24] bg-[#141418] shrink-0 h-[52px]">
-          <h3 className="text-sm md:text-base font-bold text-white tracking-wide flex items-center gap-2">
-            <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shadow-sm shadow-blue-500/50" />
-            <span>Sprint Churn Detailed Breakdown</span>
-          </h3>
-          <button
-            onClick={onClose}
-            className="text-[#a1a1aa] hover:text-white p-1.5 rounded-full hover:bg-[#18181d] transition-colors cursor-pointer"
-          >
-            <X className="w-4 h-4" />
-          </button>
-        </div>
-
-        <div className="overflow-y-auto max-h-[calc(75vh-52px)] p-0">
+    <Modal title={isRelMode ? "Release Churn Detailed Breakdown" : "Sprint Churn Detailed Breakdown"} onClose={onClose}>
           {loading ? (
-            <div className="p-8 text-center text-sm text-[#a1a1aa] font-medium flex items-center justify-center gap-2">
-              <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-              <span>Loading sprint churn data...</span>
+            <div className="p-8 text-center text-sm text-muted font-medium flex items-center justify-center gap-2">
+              <div className="w-4 h-4 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              <span>Loading churn data...</span>
             </div>
           ) : churnRows.length === 0 ? (
-            <div className="p-8 text-center text-sm text-[#a1a1aa] font-medium">
-              No sprint churn data found for selected project.
+            <div className="p-8 text-center text-sm text-muted font-medium">
+              {isRelMode ? "No release churn data found for selected project." : "No sprint churn data found for selected project."}
             </div>
           ) : (
-            <table className="w-full text-left text-sm border-collapse">
-              <thead className="sticky top-0 bg-[#141418] z-10 shadow-sm">
-                <tr className="text-[#a1a1aa] border-b border-[#1e1e24] uppercase text-xs font-bold tracking-wider">
-                  <th className="py-3.5 px-6 font-bold text-left">SPRINT</th>
+            <table className="q-table w-full text-left text-sm border-collapse">
+              <thead className="sticky top-0 bg-control z-10 shadow-sm">
+                <tr className="text-muted border-b border-line uppercase text-xs font-bold tracking-wider">
+                  <th className="py-3.5 px-6 font-bold text-left">{isRelMode ? "RELEASE" : "SPRINT"}</th>
                   <th className="py-3.5 px-6 font-bold text-left">ISSUE TYPE</th>
                   <th className="py-3.5 px-6 font-bold text-right">PLANNED</th>
                   <th className="py-3.5 px-6 font-bold text-right">ADDED</th>
@@ -110,30 +111,30 @@ function SprintChurnModal({ onClose, currentProject, includeBugs }) {
                   <th className="py-3.5 px-6 font-bold text-right">CHURN (%)</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-[#1e1e24]/60 text-slate-200">
+              <tbody className="divide-y divide-line/60 text-ink">
                 {churnRows.map((row, idx) => {
                   const m = row.metrics?.[row.issueType] || row.metrics?.["All"] || { planned: 0, added: 0, removed: 0, churn: "N/A" };
                   return (
-                    <tr key={idx} className="hover:bg-[#141418]/80 transition-colors">
-                      <td className="py-4 px-6 font-semibold text-white whitespace-nowrap">
+                    <tr key={idx} className="hover:bg-control/80 transition-colors">
+                      <td className="py-4 px-6 font-semibold text-ink whitespace-nowrap">
                         {row.sprint}
                       </td>
                       <td className="py-4 px-6">
                         <select
                           value={row.issueType}
                           onChange={(e) => handleIssueTypeChange(idx, e.target.value)}
-                          className="bg-[#141418] text-white border border-[#24242c] hover:border-white/30 text-xs font-semibold rounded-lg px-3.5 py-1.5 focus:outline-none focus:border-blue-500/80 cursor-pointer transition-colors shadow-sm"
+                          className="bg-control text-ink border border-line hover:border-ink/30 text-xs font-semibold rounded-lg px-3.5 py-1.5 focus:outline-none focus:border-accent/80 cursor-pointer transition-colors shadow-sm"
                         >
-                          <option value="All" className="bg-[#141418] text-white">All</option>
-                          <option value="Story" className="bg-[#141418] text-white">Story</option>
-                          <option value="Task" className="bg-[#141418] text-white">Task</option>
-                          <option value="Bug" className="bg-[#141418] text-white">Bug</option>
+                          <option value="All" className="bg-control text-ink">All</option>
+                          <option value="Story" className="bg-control text-ink">Story</option>
+                          <option value="Task" className="bg-control text-ink">Task</option>
+                          <option value="Bug" className="bg-control text-ink">Bug</option>
                         </select>
                       </td>
-                      <td className="py-4 px-6 text-right font-mono text-slate-300">{m.planned}</td>
-                      <td className="py-4 px-6 text-right font-mono text-emerald-400">{m.added}</td>
-                      <td className="py-4 px-6 text-right font-mono text-rose-400">{m.removed}</td>
-                      <td className="py-4 px-6 text-right font-mono font-bold text-blue-400">
+                      <td className="py-4 px-6 text-right font-mono text-ink">{m.planned}</td>
+                      <td className="py-4 px-6 text-right font-mono text-success">{m.added}</td>
+                      <td className="py-4 px-6 text-right font-mono text-danger">{m.removed}</td>
+                      <td className="py-4 px-6 text-right font-mono font-bold text-accent">
                         {m.churn === "N/A" ? "N/A" : `${m.churn}%`}
                       </td>
                     </tr>
@@ -142,13 +143,11 @@ function SprintChurnModal({ onClose, currentProject, includeBugs }) {
               </tbody>
             </table>
           )}
-        </div>
-      </div>
-    </div>
+    </Modal>
   );
 }
 
-function ChurnCard({ currentProject, currentSprint, sprints }) {
+function ChurnCard({ currentProject, currentSprint, currentRelease, isRelease, sprints }) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [includeBugs, setIncludeBugs] = useState("All");
   const [selectedSprintFilter, setSelectedSprintFilter] = useState("All");
@@ -171,8 +170,14 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
     });
   };
 
-  const fetchChurnData = useCallback(() => {
-    const companyName = localStorage.getItem("companyName");
+  const fetchChurnData = useCallback((signal) => {
+    const { companyName, project: targetProject, sprint: targetSprint, release: relName, isRelMode } = getActiveTargetParams({
+      currentSprint,
+      currentProject,
+      currentRelease,
+      isRelease
+    });
+
     if (!companyName) {
       setChurnDataList([]);
       setSummaryChurn("N/A");
@@ -181,16 +186,26 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
     }
 
     setLoading(true);
+
     const params = new URLSearchParams();
-    if (currentProject) params.append("project_id", currentProject);
+    if (targetProject) params.append("project_id", targetProject);
+    if (isRelMode) {
+      if (relName) params.append("release_name", relName);
+    }
     params.append("include_bugs", includeBugs);
     params.append("_t", String(Date.now()));
 
-    fetch(`http://127.0.0.1:8000/jira/churn-data/${companyName}?${params.toString()}`)
+    fetch(`http://127.0.0.1:8000/jira/churn-data/${companyName}?${params.toString()}`, { signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
+        if (signal?.aborted) return;
         if (data?.churnData && Array.isArray(data.churnData) && data.churnData.length > 0) {
           const rawData = [...data.churnData].sort((a, b) => {
+            const isRelA = String(a.sprintId || a.sprint || "").toLowerCase().startsWith("release");
+            const isRelB = String(b.sprintId || b.sprint || "").toLowerCase().startsWith("release");
+            if (isRelA && !isRelB) return -1;
+            if (!isRelA && isRelB) return 1;
+
             const numA = (String(a.sprint || a.name || "").match(/\d+/g) || []).pop();
             const numB = (String(b.sprint || b.name || "").match(/\d+/g) || []).pop();
             const nA = numA ? parseInt(numA, 10) : 99999;
@@ -205,26 +220,64 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
         }
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error("Error fetching churn data:", err);
         setChurnDataList([]);
         setSummaryChurn("N/A");
       })
-      .finally(() => setLoading(false));
-  }, [currentProject, includeBugs]);
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
+  }, [currentProject, includeBugs, currentRelease, isRelease]);
 
   useEffect(() => {
-    fetchChurnData();
+    let controller = new AbortController();
+    fetchChurnData(controller.signal);
+
+    const handleJiraUpdated = () => {
+      controller.abort();
+      controller = new AbortController();
+      fetchChurnData(controller.signal);
+    };
+
+    window.addEventListener("jiraSyncCompleted", handleJiraUpdated);
+    window.addEventListener("jiraIssuesUpdated", handleJiraUpdated);
+    window.addEventListener("sprintSelected", handleJiraUpdated);
+    window.addEventListener("releaseSelected", handleJiraUpdated);
+    window.addEventListener("filterTypeChanged", handleJiraUpdated);
+    window.addEventListener("projectSelected", handleJiraUpdated);
+
+    return () => {
+      controller.abort();
+      window.removeEventListener("jiraSyncCompleted", handleJiraUpdated);
+      window.removeEventListener("jiraIssuesUpdated", handleJiraUpdated);
+      window.removeEventListener("sprintSelected", handleJiraUpdated);
+      window.removeEventListener("releaseSelected", handleJiraUpdated);
+      window.removeEventListener("filterTypeChanged", handleJiraUpdated);
+      window.removeEventListener("projectSelected", handleJiraUpdated);
+    };
   }, [fetchChurnData]);
 
-  // Update summary churn dynamically when currentSprint or churnDataList changes
+  // Update summary churn dynamically when currentSprint, currentRelease or churnDataList changes
   useEffect(() => {
     if (!churnDataList || churnDataList.length === 0) {
       setSummaryChurn("N/A");
       return;
     }
 
+    const filterType = localStorage.getItem("selectedFilterType") || "Sprint";
+    const isRelMode = filterType === "Release" || isRelease;
+
     let targetSprint = null;
-    if (currentSprint && currentSprint !== "all" && currentSprint !== "All Sprints") {
+    if (isRelMode) {
+      targetSprint = churnDataList.find(
+        (s) =>
+          String(s.sprintId || "").toLowerCase().startsWith("release") ||
+          String(s.sprint || "").toLowerCase().startsWith("release")
+      );
+    } else if (currentSprint && currentSprint !== "all" && currentSprint !== "All Sprints") {
       targetSprint = churnDataList.find(
         (s) =>
           String(s.sprintId) === String(currentSprint) ||
@@ -233,41 +286,39 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
     }
 
     if (!targetSprint) {
-      // Default to latest sprint (last item in reversed rawData)
+      // Default to latest sprint (last item in rawData)
       targetSprint = churnDataList[churnDataList.length - 1];
     }
 
     const m = targetSprint?.metrics?.["All"];
-    if (m?.churn && m.churn !== "N/A") {
+    if (m?.churn !== undefined && m?.churn !== null && m?.churn !== "N/A") {
       setSummaryChurn(`${m.churn}%`);
     } else {
-      setSummaryChurn("N/A");
+      setSummaryChurn("0.0%");
     }
-  }, [churnDataList, currentSprint]);
-
-  useEffect(() => {
-    const handleJiraUpdated = () => fetchChurnData();
-    window.addEventListener("jiraSyncCompleted", handleJiraUpdated);
-    window.addEventListener("jiraIssuesUpdated", handleJiraUpdated);
-    window.addEventListener("sprintSelected", handleJiraUpdated);
-    window.addEventListener("projectSelected", handleJiraUpdated);
-
-    return () => {
-      window.removeEventListener("jiraSyncCompleted", handleJiraUpdated);
-      window.removeEventListener("jiraIssuesUpdated", handleJiraUpdated);
-      window.removeEventListener("sprintSelected", handleJiraUpdated);
-      window.removeEventListener("projectSelected", handleJiraUpdated);
-    };
-  }, [fetchChurnData]);
+  }, [churnDataList, currentSprint, currentRelease, isRelease]);
 
   const displayedSprints = useMemo(() => {
     if (!churnDataList || churnDataList.length === 0) return [];
+
+    const filterType = localStorage.getItem("selectedFilterType") || "Sprint";
+    const isRelMode = filterType === "Release" || isRelease;
+
+    if (isRelMode) {
+      const relItems = churnDataList.filter(
+        (s) =>
+          String(s.sprintId || "").toLowerCase().startsWith("release") ||
+          String(s.sprint || "").toLowerCase().startsWith("release")
+      );
+      if (relItems.length > 0) return relItems;
+    }
+
     if (selectedSprintFilter === "All") {
       return churnDataList.slice(-6);
     }
     const match = churnDataList.find(s => String(s.sprintId) === String(selectedSprintFilter) || s.sprint === selectedSprintFilter);
     return match ? [match] : churnDataList.slice(-6);
-  }, [churnDataList, selectedSprintFilter]);
+  }, [churnDataList, selectedSprintFilter, isRelease]);
 
   const activeSprintIndex = useMemo(() => {
     if (!currentSprint || !displayedSprints || displayedSprints.length === 0) return -1;
@@ -309,10 +360,10 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
 
   const lineSeries = useMemo(() => {
     const types = [
-      { key: "Story", color: "#22c55e", name: "Story" },
-      { key: "Task", color: "#06b6d4", name: "Task" },
-      { key: "Bug", color: "#c084fc", name: "Bug" },
-      { key: "All", color: "#f59e0b", name: "All" }
+      { key: "Story", color: "var(--success)", name: "Story" },
+      { key: "Task", color: "var(--cyan)", name: "Task" },
+      { key: "Bug", color: "var(--color-purple)", name: "Bug" },
+      { key: "All", color: "var(--warning)", name: "All" }
     ];
 
     return types.map(t => {
@@ -373,7 +424,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
   const cardTitle = (
     <div className="relative flex items-center gap-2 select-none">
       <span>Churn</span>
-      <span className="text-white text-base md:text-lg font-black tracking-tight bg-gradient-to-r from-blue-400 to-indigo-300 bg-clip-text text-transparent">
+      <span className="text-accent text-base font-semibold tracking-tight">
         {summaryChurn}
       </span>
       <div
@@ -381,15 +432,15 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
         onMouseEnter={() => setShowFormulaTooltip(true)}
         onMouseLeave={() => setShowFormulaTooltip(false)}
       >
-        <Info className="w-4 h-4 text-slate-400 cursor-pointer hover:text-white transition-colors" />
+        <Info className="w-4 h-4 text-muted cursor-pointer hover:text-ink transition-colors" />
         {showFormulaTooltip && (
-          <div className="absolute left-6 top-0 z-50 w-64 bg-[#141b2d]/95 border border-[#2b374e] rounded-xl p-3 shadow-2xl text-xs text-slate-200 backdrop-blur-md animate-in fade-in zoom-in-95">
-            <div className="font-bold text-amber-400 mb-1">How churn is calculated</div>
-            <div className="font-mono text-[11px] bg-[#0c101a] p-1.5 rounded border border-[#1b2436] text-blue-300 mb-2">
+          <div className="absolute left-6 top-0 z-50 w-64 bg-raised/95 border border-line-strong rounded-xl p-3 shadow-none text-xs text-ink backdrop-blur-md animate-in fade-in zoom-in-95">
+            <div className="font-bold text-warning mb-1">How churn is calculated</div>
+            <div className="font-mono text-[12px] bg-canvas p-1.5 rounded border border-line text-accent mb-2">
               ((added + removed) / planned) × 100
             </div>
-            <div className="font-bold text-amber-400 mb-0.5">When planned = 0</div>
-            <div className="text-[11px] text-gray-300">Churn is undefined, so we show N/A. No initial commitment.</div>
+            <div className="font-bold text-warning mb-0.5">When planned = 0</div>
+            <div className="text-[12px] text-ink">Churn is undefined, so we show N/A. No initial commitment.</div>
           </div>
         )}
       </div>
@@ -399,9 +450,9 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
   const cardHeaderRight = (
     <div className="flex items-center gap-2.5 shrink-0 select-none">
       <select
-        value={includeBugs}
+        aria-label="Churn issue types" value={includeBugs}
         onChange={(e) => setIncludeBugs(e.target.value)}
-        className="bg-[#141418] text-white border border-[#24242c] hover:border-white/30 text-xs font-medium rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer shadow-sm max-w-[140px] truncate"
+        className="bg-control text-ink border border-line hover:border-ink/30 text-xs font-medium rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer shadow-sm max-w-[140px] truncate"
       >
         <option value="All">Include Bugs: All</option>
         <option value="Only Bugs">Only Bugs</option>
@@ -410,7 +461,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
 
       <button
         onClick={() => setIsModalOpen(true)}
-        className="text-xs px-3 py-1 bg-[#1e1e28] hover:bg-[#2a2a35] text-white rounded-full border border-[#2d2d3a] transition-colors cursor-pointer font-semibold shadow-sm shrink-0 whitespace-nowrap"
+        className="text-xs px-3 py-1 bg-control hover:bg-hover text-ink rounded-full border border-line transition-colors cursor-pointer font-semibold shadow-sm shrink-0 whitespace-nowrap"
       >
         Details
       </button>
@@ -419,11 +470,8 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
 
   if (loading) {
     return (
-      <DashboardCard title={cardTitle} className="col-span-12 md:col-span-5 min-h-[320px]" headerRight={cardHeaderRight}>
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-400 gap-2">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading Churn Data...</span>
-        </div>
+      <DashboardCard title={cardTitle} className="q-card--churn" headerRight={cardHeaderRight}>
+        <EmptyState loading />
       </DashboardCard>
     );
   }
@@ -431,10 +479,8 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
   if (!displayedSprints || displayedSprints.length === 0) {
     return (
       <>
-        <DashboardCard title={cardTitle} className="col-span-12 md:col-span-5 min-h-[320px]" headerRight={cardHeaderRight}>
-          <div className="flex flex-col items-center justify-center h-[220px] text-slate-500 gap-2">
-            <span className="text-sm font-medium">No churn data available</span>
-          </div>
+        <DashboardCard title={cardTitle} className="q-card--churn" headerRight={cardHeaderRight}>
+          <EmptyState title="No churn data yet" />
         </DashboardCard>
         {isModalOpen && (
           <SprintChurnModal
@@ -451,7 +497,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
     <>
       <DashboardCard
         title={cardTitle}
-        className="col-span-12 md:col-span-5 min-h-[320px]"
+        className="q-card--churn"
         headerRight={cardHeaderRight}
       >
         <div className="relative w-full h-full flex flex-col justify-between items-center select-none py-1">
@@ -467,7 +513,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                 y1={padTop}
                 x2={axisLeft}
                 y2={padTop + chartH}
-                stroke="#24242c"
+                stroke="var(--chart-grid)"
                 strokeWidth="1"
               />
 
@@ -481,14 +527,14 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                       y1={y}
                       x2={axisRight}
                       y2={y}
-                      stroke="#1e1e28"
+                      stroke="var(--chart-grid)"
                       strokeDasharray="4 4"
                       strokeWidth="1"
                     />
                     <text
                       x={axisLeft - 8}
                       y={y + 3.5}
-                      fill="#64748b"
+                      fill="var(--text-secondary)"
                       fontSize="10"
                       fontWeight="600"
                       textAnchor="end"
@@ -511,7 +557,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                         y1={padTop}
                         x2={x}
                         y2={padTop + chartH}
-                        stroke={isActive ? "#3b82f6" : "rgba(255,255,255,0.2)"}
+                        stroke={isActive ? "var(--accent)" : "var(--color-line-strong)"}
                         strokeDasharray="3 3"
                         strokeWidth={isActive ? "1.5" : "1"}
                       />
@@ -519,7 +565,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                     <text
                       x={x}
                       y={svgHeight - 12}
-                      fill={isActive ? "#60a5fa" : isHovered ? "#ffffff" : "#94a3b8"}
+                      fill={isActive ? "var(--accent)" : isHovered ? "var(--text-primary)" : "var(--text-secondary)"}
                       fontSize="10"
                       fontWeight={isActive || isHovered ? "700" : "500"}
                       textAnchor="middle"
@@ -560,7 +606,7 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                             cx={pt.x}
                             cy={pt.y}
                             r={radius}
-                            fill="#0c0c0e"
+                            fill="var(--bg-surface)"
                             stroke={series.color}
                             strokeWidth={dotStrokeW}
                             className="transition-all duration-200"
@@ -579,8 +625,8 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                   hoverIndex < Math.ceil(displayedSprints.length / 2) ? "left-[35%] md:left-[42%]" : "right-[35%] md:right-[42%]"
                 } animate-in fade-in zoom-in-95`}
               >
-                <div className="bg-[#121217]/95 border border-[#2d2d3a] text-white px-3.5 py-2.5 rounded-xl shadow-2xl space-y-1.5 backdrop-blur-md min-w-[145px]">
-                  <div className="text-xs font-bold text-white tracking-wide border-b border-[#24242c] pb-1">
+                <div className="bg-raised/95 border border-line text-ink px-3.5 py-2.5 rounded-xl shadow-none space-y-1.5 backdrop-blur-md min-w-[145px]">
+                  <div className="text-xs font-bold text-ink tracking-wide border-b border-line pb-1">
                     {displayedSprints[hoverIndex].sprint}
                   </div>
                   {lineSeries.filter(s => s.isVisible).map((series) => {
@@ -590,9 +636,9 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
                       <div key={series.key} className="flex items-center justify-between text-xs font-semibold gap-3">
                         <div className="flex items-center gap-1.5">
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: series.color }} />
-                          <span className="text-slate-300">{series.name}:</span>
+                          <span className="text-ink">{series.name}:</span>
                         </div>
-                        <span className="font-mono font-bold text-white">{valDisplay}</span>
+                        <span className="font-mono font-bold text-ink">{valDisplay}</span>
                       </div>
                     );
                   })}
@@ -601,26 +647,26 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
             )}
           </div>
 
-          <div className="flex items-center justify-center gap-5 border-t border-[#1e1e24]/80 pt-2.5 pb-0.5 w-full text-xs font-semibold text-slate-300 shrink-0 select-none">
+          <div className="flex items-center justify-center flex-wrap gap-3 border-t border-line/80 pt-2.5 pb-0.5 w-full text-xs font-semibold text-ink shrink-0 select-none">
             {lineSeries.map((s) => {
               const isVisible = s.isVisible;
               return (
-                <div
+                <button type="button" aria-pressed={s.isVisible}
                   key={s.key}
                   onClick={() => toggleSeries(s.key)}
                   onMouseEnter={() => setHoveredLegendKey(s.key)}
                   onMouseLeave={() => setHoveredLegendKey(null)}
                   className={`flex items-center gap-1.5 px-2 py-0.5 rounded-md transition-all cursor-pointer ${
-                    isVisible ? "hover:bg-[#1e1e28] text-slate-200" : "opacity-40 line-through text-slate-500 hover:opacity-70"
+                    isVisible ? "hover:bg-control text-ink" : "opacity-40 line-through text-muted hover:opacity-70"
                   }`}
                   title={`Click to ${isVisible ? "hide" : "show"} ${s.name}`}
                 >
                   <span
                     className="w-2.5 h-2.5 rounded-full shadow-sm shrink-0"
-                    style={{ backgroundColor: isVisible ? s.color : "#4b5563" }}
+                    style={{ backgroundColor: isVisible ? s.color : "var(--text-secondary)" }}
                   />
                   <span>{s.name}</span>
-                </div>
+                </button>
               );
             })}
           </div>
@@ -631,6 +677,8 @@ function ChurnCard({ currentProject, currentSprint, sprints }) {
         <SprintChurnModal
           onClose={() => setIsModalOpen(false)}
           currentProject={currentProject}
+          currentRelease={currentRelease}
+          isRelease={isRelease}
           includeBugs={includeBugs}
         />
       )}

@@ -1,30 +1,17 @@
 import React, { useEffect, useState, useCallback } from "react";
 import DashboardCard from "./DashboardCard";
+import { getActiveTargetParams } from "../../utils/targetHelper";
 
 const DEFAULT_STATUS_CONFIG = [
-  { key: "QA - Inprogress", label: "QA - Inprogress", color: "#4ade80", defaultCount: 0 },
-  { key: "Development", label: "Development", color: "#f43f5e", defaultCount: 0 },
-  { key: "Closed", label: "Closed", color: "#f97316", defaultCount: 0 },
-  { key: "In-Progress", label: "In-Progress", color: "#06b6d4", defaultCount: 0 },
-  { key: "To Do", label: "To Do", color: "#3b82f6", defaultCount: 0 },
+  { key: "QA - Inprogress", label: "QA - Inprogress", color: "var(--cyan)", defaultCount: 0 },
+  { key: "Development", label: "Development", color: "var(--accent)", defaultCount: 0 },
+  { key: "Closed", label: "Closed", color: "var(--success)", defaultCount: 0 },
+  { key: "In-Progress", label: "In-Progress", color: "var(--accent)", defaultCount: 0 },
+  { key: "To Do", label: "To Do", color: "var(--text-secondary)", defaultCount: 0 },
 ];
 
-function JiraStatusCard({ currentSprint, currentProject }) {
+function JiraStatusCard({ currentSprint, currentProject, currentRelease, isRelease }) {
   const [sortMode, setSortMode] = useState("default");
-  const [activeSprintId, setActiveSprintId] = useState(() => {
-    const saved = localStorage.getItem("selectedSprint");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return String(parsed?.sprintId || parsed?.id || "");
-      } catch { }
-    }
-    return currentSprint || "";
-  });
-  const [activeProjectId, setActiveProjectId] = useState(() => {
-    return currentProject || localStorage.getItem("currentProject") || "";
-  });
-
   const [statusCounts, setStatusCounts] = useState({
     "QA - Inprogress": 0,
     "Development": 0,
@@ -34,8 +21,14 @@ function JiraStatusCard({ currentSprint, currentProject }) {
   });
   const [hoveredKey, setHoveredKey] = useState(null);
 
-  const fetchStatusCounts = useCallback(() => {
-    const companyName = localStorage.getItem("companyName");
+  const fetchStatusCounts = useCallback((signal) => {
+    const { companyName, project: targetProject, sprint: targetSprint, release: relName, isRelMode } = getActiveTargetParams({
+      currentSprint,
+      currentProject,
+      currentRelease,
+      isRelease
+    });
+
     if (!companyName) {
       setStatusCounts({
         "QA - Inprogress": 0,
@@ -47,31 +40,23 @@ function JiraStatusCard({ currentSprint, currentProject }) {
       return;
     }
 
-    let targetSprint = activeSprintId || currentSprint;
-    if (!targetSprint) {
-      const savedSprint = localStorage.getItem("selectedSprint");
-      if (savedSprint) {
-        try {
-          const parsed = JSON.parse(savedSprint);
-          targetSprint = String(parsed?.sprintId || parsed?.id || parsed?.name || "");
-        } catch {
-          targetSprint = savedSprint;
-        }
-      }
+    const params = new URLSearchParams();
+
+    if (isRelMode) {
+      if (relName) params.append("release_name", relName);
+    } else {
+      if (targetSprint) params.append("sprint_id", targetSprint);
     }
 
-    const targetProject = activeProjectId || currentProject || localStorage.getItem("currentProject") || "";
-
-    const params = new URLSearchParams();
-    if (targetSprint) params.append("sprint_id", targetSprint);
     if (targetProject) params.append("project_id", targetProject);
     params.append("_t", String(Date.now()));
 
-    const url = `http://127.0.0.1:8000/jira/db-sprint-issues/${companyName}?${params.toString()}`;
+    const url = `http://127.0.0.1:8000/jira/sprint-issues/${companyName}?${params.toString()}`;
 
-    fetch(url, { cache: "no-store" })
+    fetch(url, { cache: "no-store", signal })
       .then((res) => res.ok && res.json())
       .then((data) => {
+        if (signal?.aborted) return;
         if (data?.issues && Array.isArray(data.issues)) {
           const counts = {
             "QA - Inprogress": 0,
@@ -111,7 +96,8 @@ function JiraStatusCard({ currentSprint, currentProject }) {
           });
         }
       })
-      .catch(() => {
+      .catch((err) => {
+        if (err?.name === "AbortError") return;
         setStatusCounts({
           "QA - Inprogress": 0,
           "Development": 0,
@@ -120,41 +106,32 @@ function JiraStatusCard({ currentSprint, currentProject }) {
           "To Do": 0,
         });
       });
-  }, [activeSprintId, currentSprint, activeProjectId, currentProject]);
+  }, [currentSprint, currentProject, currentRelease, isRelease]);
 
   useEffect(() => {
-    fetchStatusCounts();
-  }, [fetchStatusCounts]);
-
-  useEffect(() => {
-    const handleSprintSelected = (e) => {
-      const sprint = e?.detail;
-      if (sprint) {
-        const sid = String(sprint.sprintId || sprint.id || sprint.name || "");
-        setActiveSprintId(sid);
-      } else {
-        setActiveSprintId("");
-      }
-    };
-
-    const handleProjectSelected = (e) => {
-      const pid = e?.detail || localStorage.getItem("currentProject") || "";
-      setActiveProjectId(String(pid));
-    };
+    let controller = new AbortController();
+    fetchStatusCounts(controller.signal);
 
     const handleJiraUpdated = () => {
-      fetchStatusCounts();
+      controller.abort();
+      controller = new AbortController();
+      fetchStatusCounts(controller.signal);
     };
 
-    window.addEventListener("sprintSelected", handleSprintSelected);
-    window.addEventListener("projectSelected", handleProjectSelected);
+    window.addEventListener("sprintSelected", handleJiraUpdated);
+    window.addEventListener("releaseSelected", handleJiraUpdated);
+    window.addEventListener("projectSelected", handleJiraUpdated);
+    window.addEventListener("filterTypeChanged", handleJiraUpdated);
     window.addEventListener("jiraProjectsUpdated", handleJiraUpdated);
     window.addEventListener("jiraSyncCompleted", handleJiraUpdated);
     window.addEventListener("jiraIssuesUpdated", handleJiraUpdated);
 
     return () => {
-      window.removeEventListener("sprintSelected", handleSprintSelected);
-      window.removeEventListener("projectSelected", handleProjectSelected);
+      controller.abort();
+      window.removeEventListener("sprintSelected", handleJiraUpdated);
+      window.removeEventListener("releaseSelected", handleJiraUpdated);
+      window.removeEventListener("projectSelected", handleJiraUpdated);
+      window.removeEventListener("filterTypeChanged", handleJiraUpdated);
       window.removeEventListener("jiraProjectsUpdated", handleJiraUpdated);
       window.removeEventListener("jiraSyncCompleted", handleJiraUpdated);
       window.removeEventListener("jiraIssuesUpdated", handleJiraUpdated);
@@ -182,8 +159,8 @@ function JiraStatusCard({ currentSprint, currentProject }) {
       <button
         onClick={() => setSortMode("default")}
         className={`px-3 py-1 text-xs font-semibold rounded-full transition-all duration-200 ${sortMode === "default"
-          ? "bg-white text-black shadow-md shadow-white/10"
-          : "text-slate-400 hover:text-white"
+          ? "bg-inverse text-on-inverse shadow-none shadow-white/10"
+          : "text-muted hover:text-ink"
           }`}
       >
         Default
@@ -191,8 +168,8 @@ function JiraStatusCard({ currentSprint, currentProject }) {
       <button
         onClick={() => setSortMode("asc")}
         className={`px-2 py-1 text-xs font-medium transition-all duration-200 ${sortMode === "asc"
-          ? "bg-white text-black px-3 font-semibold rounded-full shadow-md shadow-white/10"
-          : "text-slate-400 hover:text-white"
+          ? "bg-inverse text-on-inverse px-3 font-semibold rounded-full shadow-none shadow-white/10"
+          : "text-muted hover:text-ink"
           }`}
       >
         ASC
@@ -200,8 +177,8 @@ function JiraStatusCard({ currentSprint, currentProject }) {
       <button
         onClick={() => setSortMode("desc")}
         className={`px-2 py-1 text-xs font-medium transition-all duration-200 ${sortMode === "desc"
-          ? "bg-white text-black px-3 font-semibold rounded-full shadow-md shadow-white/10"
-          : "text-slate-400 hover:text-white"
+          ? "bg-inverse text-on-inverse px-3 font-semibold rounded-full shadow-none shadow-white/10"
+          : "text-muted hover:text-ink"
           }`}
       >
         DSC
@@ -210,9 +187,9 @@ function JiraStatusCard({ currentSprint, currentProject }) {
   );
 
   return (
-    <DashboardCard title="Jira" infoText="Sprint issue breakdown by workflow status" headerRight={headerRight} className="col-span-12 md:col-span-4 min-h-[260px]">
-      <div className="flex flex-col h-full justify-center py-2 md:py-3 pl-7 md:pl-9 pr-6 md:pr-8 gap-5 md:gap-6">
-        <div className="flex flex-col gap-5 md:gap-6 my-auto">
+    <DashboardCard title="Jira flow" infoText="Sprint issue breakdown by workflow status" headerRight={headerRight} className="q-card--jira">
+      <div className="flex flex-col h-full justify-center py-1 px-0 gap-3.5">
+        <div className="flex flex-col gap-3.5 my-auto">
           {items.map((item) => {
             const pct = item.count > 0 ? Math.min(100, Math.max(6, (item.count / maxScale) * 100)) : 0;
             const isHovered = hoveredKey === item.key;
@@ -225,17 +202,17 @@ function JiraStatusCard({ currentSprint, currentProject }) {
                 onMouseEnter={() => setHoveredKey(item.key)}
                 onMouseLeave={() => setHoveredKey(null)}
               >
-                <span className="w-28 md:w-32 text-xs md:text-sm font-medium text-slate-300 shrink-0 text-left pr-3 truncate group-hover:text-white transition-colors">
+                <span className="w-32 text-xs font-medium text-ink shrink-0 text-left pr-2 break-words group-hover:text-ink transition-colors">
                   {item.label}
                 </span>
 
-                <div className="flex-1 max-w-[65%] md:max-w-[68%] relative h-2 md:h-2.5 bg-[#18181c] border border-white/5 rounded-full flex items-center">
+                <div className="flex-1 min-w-0 relative h-2 md:h-2.5 bg-control border border-ink/5 rounded-full flex items-center">
                   <div
                     className="h-full rounded-full transition-all duration-500 ease-out relative"
                     style={{
                       width: `${pct}%`,
                       backgroundColor: item.color,
-                      boxShadow: isHovered ? `0 0 12px ${item.color}aa` : "none",
+                      boxShadow: "none",
                     }}
                   />
 
@@ -244,21 +221,22 @@ function JiraStatusCard({ currentSprint, currentProject }) {
                       className="absolute z-30 pointer-events-none animate-in fade-in zoom-in-95 duration-150"
                       style={{ left: `${Math.max(25, Math.min(85, pct))}%`, top: "-32px", transform: "translateX(-50%)" }}
                     >
-                      <div className="bg-[#18181d] border border-white/20 text-white text-[11px] md:text-xs font-semibold px-2.5 py-0.5 rounded-md shadow-2xl flex items-center gap-1.5 whitespace-nowrap">
+                      <div className="bg-hover border border-ink/20 text-ink text-[12px] md:text-xs font-semibold px-2.5 py-0.5 rounded-md shadow-none flex items-center gap-1.5 whitespace-nowrap">
                         <span className="w-2 h-2 rounded-full shadow-sm" style={{ backgroundColor: item.color }} />
                         <span>{item.label}: {item.count}</span>
                       </div>
                     </div>
                   )}
                 </div>
+                <span className="ml-3 text-xs font-mono text-muted w-6 text-right">{item.count}</span>
               </div>
             );
           })}
         </div>
 
-        <div className="flex items-center text-slate-400 text-xs font-mono font-medium pt-1">
-          <div className="w-28 md:w-32 shrink-0" />
-          <div className="flex-1 max-w-[65%] md:max-w-[68%] relative h-5">
+        <div className="flex items-center text-muted text-xs font-mono font-medium pt-1">
+          <div className="w-32 shrink-0" />
+          <div className="flex-1 min-w-0 relative h-5">
             {ticks.map((t, idx) => {
               const posPct = (idx / (ticks.length - 1)) * 100;
               let transformClass = "-translate-x-1/2";
@@ -268,7 +246,7 @@ function JiraStatusCard({ currentSprint, currentProject }) {
               return (
                 <span
                   key={t}
-                  className={`absolute top-0.5 select-none text-[11px] md:text-xs text-slate-400 font-medium ${transformClass}`}
+                  className={`absolute top-0.5 select-none text-[12px] md:text-xs text-muted font-medium ${transformClass}`}
                   style={{ left: `${posPct}%` }}
                 >
                   {t}

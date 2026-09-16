@@ -1,21 +1,8 @@
-import React from "react";
-
-function DashboardCard({ title, children, className = "", headerRight = null, infoText = null }) {
-  return (
-    <div className={`bg-[#0c0c0e]/90 backdrop-blur-xl rounded-3xl p-6 md:p-7 border border-[#1e1e24] shadow-2xl hover:border-white/20 transition-all duration-300 flex flex-col h-full overflow-hidden ${className}`}>
-      <h3 className="text-white text-base md:text-xl font-bold tracking-tight mb-4 flex items-center justify-between shrink-0 gap-2">
-        <span className="pt-0.5 flex items-center gap-1.5 min-w-0">
-          <span className="truncate">{title}</span>
-        </span>
-        {headerRight ? (
-          <div className="shrink-0 flex items-center">{headerRight}</div>
-        ) : (
-          <span className="w-2.5 h-2.5 rounded-full bg-white shadow-sm shadow-white/50 shrink-0" />
-        )}
-      </h3>
-      <div className="flex-1 w-full overflow-hidden flex flex-col justify-center">{children}</div>
-    </div>
-  );
+import { Info } from "lucide-react";
+export default function DashboardCard({ title, children, className = "", headerRight = null, infoText = null }) {
+  const type = className.match(/q-card--[a-z]+/)?.[0] || "q-card--chart";
+  return <section className={`q-card ${type}`}>
+    <header className="q-card-header"><div className="q-card-title"><h2>{title}</h2>{infoText && <span className="q-card-info" title={infoText} aria-label={infoText} tabIndex={0}><Info size={13} /></span>}</div>{headerRight && <div className="q-card-tools">{headerRight}</div>}</header>
+    <div className="q-card-body">{children}</div>
+  </section>;
 }
-
-export default DashboardCard;

@@ -83,49 +83,49 @@ function GitHubIntegration({ companyName }) {
   };
 
   return (
-    <div className="max-w-2xl mx-auto bg-[#1e1e1e] rounded-2xl shadow-2xl border border-[#2a2a2a] p-6 md:p-8 font-sans">
+    <div className="max-w-2xl mx-auto bg-surface rounded-2xl shadow-none border border-line p-6 md:p-8 font-sans">
       <div className="flex items-center gap-3 mb-6">
-        <div className="p-3 rounded-xl bg-[#262626] border border-[#333333] text-white text-2xl shadow-sm">
+        <div className="p-3 rounded-xl bg-control border border-line-strong text-ink text-2xl shadow-sm">
           <FaGithub />
         </div>
         <div>
-          <h2 className="text-xl font-bold text-white tracking-tight">GitHub Integration</h2>
-          <p className="text-[#a1a1a1] text-xs mt-0.5">
-            Connect your GitHub account to sync repositories and pull requests into MongoDB.
+          <h2 className="text-xl font-bold text-ink tracking-tight">GitHub Integration</h2>
+          <p className="text-muted text-xs mt-0.5">
+            Connect your GitHub account to sync repositories and pull requests into your workspace.
           </p>
         </div>
       </div>
 
       <div className="space-y-5">
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-white mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink mb-2">
             GitHub Owner
           </label>
           <input
             type="text"
-            value={githubOwner}
+            value={githubOwner} aria-label="GitHub owner"
             onChange={(e) => setGithubOwner(e.target.value)}
             placeholder="e.g. username or organization"
-            className="w-full rounded-xl border border-[#333333] bg-[#262626] text-white placeholder:text-[#777777] px-4 py-3 focus:outline-none focus:border-white text-sm transition-all"
+            className="w-full rounded-xl border border-line-strong bg-control text-ink placeholder:text-muted px-4 py-3 focus:outline-none focus:border-ink text-sm transition-all"
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold uppercase tracking-wider text-white mb-2">
+          <label className="block text-xs font-bold uppercase tracking-wider text-ink mb-2">
             Personal Access Token
           </label>
           <input
             type="password"
-            value={githubToken}
+            value={githubToken} aria-label="GitHub personal access token"
             onChange={(e) => setGithubToken(e.target.value)}
             placeholder="ghp_xxxxxxxxxxxxxxxxx"
-            className="w-full rounded-xl border border-[#333333] bg-[#262626] text-white placeholder:text-[#777777] px-4 py-3 focus:outline-none focus:border-white text-sm transition-all"
+            className="w-full rounded-xl border border-line-strong bg-control text-ink placeholder:text-muted px-4 py-3 focus:outline-none focus:border-ink text-sm transition-all"
           />
         </div>
 
         {message && (
           <div className={`flex items-center gap-2 rounded-xl px-4 py-3 border text-sm font-medium ${
-            connected ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/30" : "bg-red-500/10 text-red-400 border-red-500/30"
+            connected ? "bg-success/10 text-success border-success/30" : "bg-danger/10 text-danger border-danger/30"
           }`}>
             {connected ? <CheckCircle size={18} /> : <XCircle size={18} />}
             {message}
@@ -136,7 +136,7 @@ function GitHubIntegration({ companyName }) {
           <button
             onClick={handleConnectGithub}
             disabled={loading}
-            className="w-full bg-white hover:bg-neutral-200 text-black px-6 py-3 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-md disabled:opacity-60 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
+            className="w-full bg-inverse hover:bg-inverse text-on-inverse px-6 py-3 rounded-full font-bold text-sm transition-all flex items-center justify-center gap-2 shadow-none disabled:opacity-60 disabled:cursor-not-allowed active:scale-95 cursor-pointer"
           >
             {loading ? (
               <>

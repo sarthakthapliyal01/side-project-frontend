@@ -1,8 +1,9 @@
+import { Brand } from "../components/ui/ProductUI";
 import { useState } from "react";
 import axios from "axios";
-import { Loader2, ArrowRight } from "lucide-react";
+import { Loader2, ArrowRight, Kanban, GitBranch, ChartNoAxesCombined } from "lucide-react";
 
-function OrganizationPage({ onOrganizationCreated }) {
+function OrganizationPage({ onOrganizationCreated, onDevBypass }) {
   const [companyName, setCompanyName] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -27,67 +28,31 @@ function OrganizationPage({ onOrganizationCreated }) {
   };
 
   return (
-    <div className="min-h-screen w-full bg-gradient-to-b from-[#0f0f12] via-[#08080a] to-[#000000] text-white flex items-center justify-center p-8 font-sans relative overflow-hidden">
-      
-      {/* Soft Ambient Radial Glow */}
-      <div className="absolute top-1/3 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] bg-white/[0.03] rounded-full blur-3xl pointer-events-none" />
-
-      <div className="w-full max-w-[460px] relative z-10">
-        
-        {/* Header */}
-        <div className="text-center mb-14">
-          <h1 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tight leading-tight mb-4">
-            Organization Workspace
-          </h1>
-          <p className="text-[#999999] text-base font-normal leading-relaxed max-w-[380px] mx-auto">
-            Enter your company details to set up or access your dedicated workspace.
-          </p>
+    <main className="q-auth q-onboarding">
+      <div className="q-auth-brand"><Brand /></div>
+      <div className="q-auth-layout">
+      <section className="q-auth-intro">
+        <div className="q-eyebrow">Workspace setup</div>
+        <h1>Your team.<br /><span>One workspace.</span></h1>
+        <p className="q-auth-lead">Enter your organization name to set up or access your workspace.</p>
+        <div className="q-workspace-flow" aria-hidden="true">
+          <span><Kanban size={22} />Plan</span><i />
+          <span><GitBranch size={22} />Build</span><i />
+          <span><ChartNoAxesCombined size={22} />Deliver</span>
         </div>
-
-        {/* Form Container */}
-        <form onSubmit={handleSubmit} className="space-y-8">
-          
-          {/* Organization Name Input */}
-          <div className="space-y-3">
-            <label className="block text-sm font-semibold text-[#cccccc] tracking-wide ml-1">
-              Organization Name
-            </label>
-            <input
-              type="text"
-              value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
-              placeholder="Organization Name"
-              required
-              className="w-full h-14 rounded-full bg-[#121215] border border-[#26262b] px-6 text-base text-white placeholder:text-[#555555] outline-none focus:border-white focus:ring-1 focus:ring-white/20 transition-all duration-200 shadow-inner"
-            />
-          </div>
-
-          {/* Submit Action Pill */}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full h-14 mt-4 rounded-full bg-white hover:bg-neutral-200 text-black text-base font-bold transition-all duration-200 cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2.5 shadow-xl hover:shadow-white/10 active:scale-[0.98]"
-          >
-            {loading ? (
-              <>
-                <Loader2 className="w-5 h-5 animate-spin text-black" />
-                <span>Processing...</span>
-              </>
-            ) : (
-              <>
-                <span>Continue to Workspace</span>
-                <ArrowRight className="w-4 h-4 text-black" />
-              </>
-            )}
-          </button>
-
+      </section>
+      <section className="q-auth-content q-auth-setup" aria-labelledby="workspace-details">
+        <form onSubmit={handleSubmit} className="q-auth-form">
+          <h2 id="workspace-details" className="q-auth-form-heading">Workspace details</h2>
+          <label htmlFor="organization-name">Organization name</label>
+          <input id="organization-name" type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder="e.g. Acme Inc." autoComplete="organization" required aria-describedby="organization-help" />
+          <p className="q-auth-help" id="organization-help">Use the organization name shared by your team.</p>
+          <button type="submit" disabled={loading} className="q-button q-button--primary">{loading ? <><Loader2 size={18} className="animate-spin" />Processing…</> : <>Continue to workspace<ArrowRight size={18} /></>}</button>
         </form>
+        <p className="q-auth-meta">A shared view of your team's delivery.</p>
+      </section>
       </div>
-    </div>
+    </main>
   );
 }
-
 export default OrganizationPage;
-
-
-

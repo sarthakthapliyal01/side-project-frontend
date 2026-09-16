@@ -108,25 +108,25 @@ function RolesAndBilling({ onBack }) {
   };
 
   return (
-    <div className="w-full min-h-screen bg-[#09090b] text-slate-100 p-6 md:p-10 font-sans tracking-wide">
+    <div className="q-page">
       <div className="max-w-5xl mx-auto space-y-8">
         
         {/* Top Header & Navigation Bar */}
-        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-[#1e1e24]">
+        <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b border-line">
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}
-              className="flex items-center gap-2 px-4 py-2.5 bg-[#141418] hover:bg-[#1e1e24] border border-[#27272a] hover:border-white/30 rounded-xl text-xs font-bold text-slate-300 hover:text-white transition-all cursor-pointer shadow-md"
+              className="flex items-center gap-2 px-4 py-2.5 bg-control hover:bg-line border border-line hover:border-ink/30 rounded-xl text-xs font-bold text-ink hover:text-ink transition-all cursor-pointer shadow-none"
             >
               <ArrowLeft className="w-4 h-4" />
               Back
             </button>
             <div>
-              <h1 className="text-2xl font-black text-white tracking-tight flex items-center gap-2.5">
-                <ShieldCheck className="w-6 h-6 text-blue-500" />
+              <h1 className="text-3xl font-semibold text-ink tracking-tight flex items-center gap-2.5">
+                <ShieldCheck className="w-6 h-6 text-accent" />
                 Roles & Rate Card
               </h1>
-              <p className="text-xs text-[#999999] mt-0.5 font-medium">
+              <p className="text-xs text-muted mt-0.5 font-medium">
                 Configure custom team roles and their default hourly billing rates
               </p>
             </div>
@@ -134,16 +134,16 @@ function RolesAndBilling({ onBack }) {
         </div>
 
         {/* Main Card Container */}
-        <div className="bg-[#0c0c0e]/90 backdrop-blur-xl border border-[#1e1e24] rounded-3xl p-6 md:p-8 shadow-2xl space-y-6">
+        <div className="bg-surface/90  border border-line rounded-2xl p-6 md:p-8 shadow-none space-y-6">
           {loading ? (
-            <div className="py-20 flex flex-col items-center justify-center gap-4 text-[#999999]">
-              <Loader2 className="w-8 h-8 animate-spin text-blue-500" />
+            <div className="py-20 flex flex-col items-center justify-center gap-4 text-muted">
+              <Loader2 className="w-8 h-8 animate-spin text-accent" />
               <span className="font-semibold text-xs tracking-wider uppercase">Loading Roles & Billing Config...</span>
             </div>
           ) : (
             <>
               {/* Table Header Row */}
-              <div className="hidden md:grid grid-cols-12 gap-4 items-center bg-[#141418] text-xs font-bold text-slate-400 uppercase tracking-wider rounded-2xl px-6 py-4 border border-[#1e1e24]">
+              <div className="hidden md:grid grid-cols-12 gap-4 items-center bg-control text-xs font-bold text-muted uppercase tracking-wider rounded-2xl px-6 py-4 border border-line">
                 <div className="col-span-6">Role Name</div>
                 <div className="col-span-4">Billing Rate ($ / hr)</div>
                 <div className="col-span-2 text-center">Actions</div>
@@ -152,38 +152,38 @@ function RolesAndBilling({ onBack }) {
               {/* Rows List */}
               <div className="space-y-3.5">
                 {roles.length === 0 ? (
-                  <div className="text-center py-12 text-[#999999] text-sm">
-                    No roles configured. Click <span className="text-white font-bold">+ Add Row</span> to create one.
+                  <div className="text-center py-12 text-muted text-sm">
+                    No roles configured. Click <span className="text-ink font-bold">+ Add Row</span> to create one.
                   </div>
                 ) : (
                   roles.map((item, idx) => (
                     <div
                       key={idx}
-                      className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-[#141418]/60 hover:bg-[#141418] border border-[#1e1e24] hover:border-[#27272a] rounded-2xl p-4 md:px-6 md:py-3.5 transition-all duration-200 shadow-sm"
+                      className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center bg-control/60 hover:bg-control border border-line hover:border-line rounded-2xl p-4 md:px-6 md:py-3.5 transition-all duration-200 shadow-sm"
                     >
                       {/* Role Input */}
                       <div className="md:col-span-6">
-                        <label className="block md:hidden text-[10px] uppercase tracking-wider text-[#999999] mb-1 font-bold">Role Name</label>
+                        <label className="block md:hidden text-[12px] uppercase tracking-wider text-muted mb-1 font-bold">Role Name</label>
                         <input
                           type="text"
                           value={item.role}
                           onChange={(e) => handleRoleChange(idx, "role", e.target.value)}
                           placeholder="e.g. Senior Developer, QA Analyst"
-                          className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500/80 rounded-xl px-4 py-3 text-sm text-white placeholder-[#52525b] font-medium focus:outline-none transition-colors shadow-inner"
+                          className="w-full bg-canvas border border-line focus:border-accent/80 rounded-xl px-4 py-3 text-sm text-ink placeholder-muted font-medium focus:outline-none transition-colors shadow-none"
                         />
                       </div>
 
                       {/* Billing Rate Input */}
                       <div className="md:col-span-4">
-                        <label className="block md:hidden text-[10px] uppercase tracking-wider text-[#999999] mb-1 font-bold">Billing Rate ($ / hr)</label>
+                        <label className="block md:hidden text-[12px] uppercase tracking-wider text-muted mb-1 font-bold">Billing Rate ($ / hr)</label>
                         <div className="relative flex items-center">
-                          <span className="absolute left-4 text-slate-500 font-bold text-sm">$</span>
+                          <span className="absolute left-4 text-muted font-bold text-sm">$</span>
                           <input
                             type="number"
                             value={item.billingRate}
                             onChange={(e) => handleRoleChange(idx, "billingRate", e.target.value)}
                             placeholder="0"
-                            className="w-full bg-[#09090b] border border-[#27272a] focus:border-blue-500/80 rounded-xl pl-8 pr-4 py-3 text-sm text-white placeholder-[#52525b] font-bold focus:outline-none transition-colors shadow-inner"
+                            className="w-full bg-canvas border border-line focus:border-accent/80 rounded-xl pl-8 pr-4 py-3 text-sm text-ink placeholder-muted font-bold focus:outline-none transition-colors shadow-none"
                           />
                         </div>
                       </div>
@@ -192,7 +192,7 @@ function RolesAndBilling({ onBack }) {
                       <div className="md:col-span-2 flex justify-end md:justify-center">
                         <button
                           onClick={() => handleDeleteRow(idx)}
-                          className="w-10 h-10 rounded-xl bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
+                          className="w-10 h-10 rounded-xl bg-danger/10 hover:bg-danger/20 text-danger border border-danger/20 flex items-center justify-center transition-all cursor-pointer shadow-sm active:scale-95"
                           title="Delete Role"
                         >
                           <Trash2 className="w-4 h-4" />
@@ -204,18 +204,18 @@ function RolesAndBilling({ onBack }) {
               </div>
 
               {/* Action Buttons Footer */}
-              <div className="pt-6 border-t border-[#1e1e24] flex flex-wrap items-center justify-end gap-4">
+              <div className="pt-6 border-t border-line flex flex-wrap items-center justify-end gap-4">
                 <button
                   onClick={handleAddRow}
-                  className="flex items-center gap-2 px-6 py-3 bg-[#181820] hover:bg-[#22222c] border border-[#27272a] hover:border-white/30 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg tracking-wider uppercase active:scale-95"
+                  className="flex items-center gap-2 px-6 py-3 bg-hover hover:bg-hover border border-line hover:border-ink/30 text-ink font-bold text-xs rounded-xl transition-all cursor-pointer shadow-none tracking-wider uppercase active:scale-95"
                 >
-                  <Plus className="w-4 h-4 text-blue-400" />
+                  <Plus className="w-4 h-4 text-accent" />
                   Add Row
                 </button>
                 <button
                   onClick={handleSave}
                   disabled={saving}
-                  className="flex items-center gap-2 px-8 py-3 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold text-xs rounded-xl transition-all cursor-pointer shadow-lg shadow-emerald-900/30 tracking-wider uppercase active:scale-95"
+                  className="q-button q-button--primary"
                 >
                   {saving ? (
                     <Loader2 className="w-4 h-4 animate-spin" />

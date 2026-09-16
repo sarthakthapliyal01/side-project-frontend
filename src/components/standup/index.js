@@ -8,3 +8,5 @@ export { default as SprintGoalSuccessCard } from "./SprintGoalSuccessCard";
 export { default as SprintIssuesCard } from "./SprintIssuesCard";
 export { default as ChurnCard } from "./ChurnCard";
 export { default as CapacityCard } from "./CapacityCard";
+export { default as ReleaseBurndownCard } from "./ReleaseBurndownCard";
+

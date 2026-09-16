@@ -1,49 +1,24 @@
+import { EmptyState } from "../ui/ProductUI";
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardCard from "./DashboardCard";
+import { getActiveTargetParams } from "../../utils/targetHelper";
 
 function BurnupCard({ currentSprint, currentProject }) {
   const [unitMode, setUnitMode] = useState("SP"); // "SP" | "Hrs"
   const [hoverIndex, setHoverIndex] = useState(null);
-
-  const [activeSprintId, setActiveSprintId] = useState(() => {
-    const saved = localStorage.getItem("selectedSprint");
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        return String(parsed?.sprintId || parsed?.id || "");
-      } catch { }
-    }
-    return currentSprint || "";
-  });
-
-  const [activeProjectId, setActiveProjectId] = useState(() => {
-    return currentProject || localStorage.getItem("currentProject") || "";
-  });
-
   const [chartData, setChartData] = useState(null);
   const [loading, setLoading] = useState(true);
 
-  const fetchData = useCallback(() => {
-    const companyName = localStorage.getItem("companyName");
+  const fetchData = useCallback((signal) => {
+    const { companyName, project: targetProject, sprint: targetSprint } = getActiveTargetParams({
+      currentSprint,
+      currentProject
+    });
+
     if (!companyName) {
       setLoading(false);
       return;
     }
-
-    let targetSprint = activeSprintId || currentSprint;
-    if (!targetSprint) {
-      const savedSprint = localStorage.getItem("selectedSprint");
-      if (savedSprint) {
-        try {
-          const parsed = JSON.parse(savedSprint);
-          targetSprint = String(parsed?.sprintId || parsed?.id || parsed?.name || "");
-        } catch {
-          targetSprint = savedSprint;
-        }
-      }
-    }
-
-    const targetProject = activeProjectId || currentProject || localStorage.getItem("currentProject") || "";
 
     const params = new URLSearchParams();
     if (targetSprint) params.append("sprint_id", targetSprint);
@@ -53,9 +28,10 @@ function BurnupCard({ currentSprint, currentProject }) {
     const url = `http://127.0.0.1:8000/jira/burnup/${companyName}?${params.toString()}`;
 
     setLoading(true);
-    fetch(url, { cache: "no-store" })
+    fetch(url, { cache: "no-store", signal })
       .then((res) => res.ok && res.json())
       .then((data) => {
+        if (signal?.aborted) return;
         if (data && data.dates && data.sp) {
           setChartData(data);
         } else {
@@ -63,45 +39,39 @@ function BurnupCard({ currentSprint, currentProject }) {
         }
       })
       .catch((err) => {
+        if (err?.name === "AbortError") return;
         console.error("Error fetching burnup data:", err);
         setChartData(null);
       })
-      .finally(() => setLoading(false));
-  }, [activeSprintId, currentSprint, activeProjectId, currentProject]);
+      .finally(() => {
+        if (!signal?.aborted) {
+          setLoading(false);
+        }
+      });
+  }, [currentSprint, currentProject]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
-
-  useEffect(() => {
-    const handleSprintSelected = (e) => {
-      const sprint = e?.detail;
-      if (sprint) {
-        const sid = String(sprint.sprintId || sprint.id || sprint.name || "");
-        setActiveSprintId(sid);
-      } else {
-        setActiveSprintId("");
-      }
-    };
-
-    const handleProjectSelected = (e) => {
-      const pid = e?.detail || localStorage.getItem("currentProject") || "";
-      setActiveProjectId(String(pid));
-    };
+    let controller = new AbortController();
+    fetchData(controller.signal);
 
     const handleJiraUpdated = () => {
-      fetchData();
+      controller.abort();
+      controller = new AbortController();
+      fetchData(controller.signal);
     };
 
-    window.addEventListener("sprintSelected", handleSprintSelected);
-    window.addEventListener("projectSelected", handleProjectSelected);
+    window.addEventListener("sprintSelected", handleJiraUpdated);
+    window.addEventListener("projectSelected", handleJiraUpdated);
+    window.addEventListener("filterTypeChanged", handleJiraUpdated);
     window.addEventListener("jiraProjectsUpdated", handleJiraUpdated);
     window.addEventListener("jiraSyncCompleted", handleJiraUpdated);
     window.addEventListener("jiraIssuesUpdated", handleJiraUpdated);
 
     return () => {
-      window.removeEventListener("sprintSelected", handleSprintSelected);
-      window.removeEventListener("projectSelected", handleProjectSelected);
+      controller.abort();
+      window.removeEventListener("sprintSelected", handleJiraUpdated);
+      window.removeEventListener("projectSelected", handleJiraUpdated);
+      window.removeEventListener("filterTypeChanged", handleJiraUpdated);
       window.removeEventListener("jiraProjectsUpdated", handleJiraUpdated);
       window.removeEventListener("jiraSyncCompleted", handleJiraUpdated);
       window.removeEventListener("jiraIssuesUpdated", handleJiraUpdated);
@@ -128,13 +98,13 @@ function BurnupCard({ currentSprint, currentProject }) {
 
   const headerRight = (
     <div className="flex items-center gap-2 shrink-0">
-      <div className="flex items-center gap-1 bg-[#18181d] p-1 rounded-full border border-white/10">
+      <div className="flex items-center gap-1 bg-hover p-1 rounded-full border border-ink/10">
         <button
           onClick={() => setUnitMode("SP")}
           className={`px-2.5 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
             unitMode === "SP"
-              ? "bg-[#3b82f6] text-white shadow-md shadow-blue-500/30"
-              : "text-slate-400 hover:text-white"
+              ? "bg-accent text-on-accent shadow-none shadow-blue-500/30"
+              : "text-muted hover:text-ink"
           }`}
         >
           SP
@@ -143,8 +113,8 @@ function BurnupCard({ currentSprint, currentProject }) {
           onClick={() => setUnitMode("Hrs")}
           className={`px-2.5 py-0.5 text-xs font-bold rounded-full transition-all duration-200 cursor-pointer ${
             unitMode === "Hrs"
-              ? "bg-[#3b82f6] text-white shadow-md shadow-blue-500/30"
-              : "text-slate-400 hover:text-white"
+              ? "bg-accent text-on-accent shadow-none shadow-blue-500/30"
+              : "text-muted hover:text-ink"
           }`}
         >
           Hrs
@@ -162,12 +132,9 @@ function BurnupCard({ currentSprint, currentProject }) {
         title={titleText}
         infoText={infoText}
         headerRight={headerRight}
-        className="col-span-12 md:col-span-6 lg:col-span-4 min-h-[320px]"
+        className="q-card--chart"
       >
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-400 gap-2">
-          <div className="w-6 h-6 border-2 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-sm font-medium">Loading Burnup Data...</span>
-        </div>
+        <EmptyState loading />
       </DashboardCard>
     );
   }
@@ -178,11 +145,9 @@ function BurnupCard({ currentSprint, currentProject }) {
         title={titleText}
         infoText={infoText}
         headerRight={headerRight}
-        className="col-span-12 md:col-span-6 lg:col-span-4 min-h-[320px]"
+        className="q-card--chart"
       >
-        <div className="flex flex-col items-center justify-center h-[220px] text-slate-500 gap-2">
-          <span className="text-sm font-medium">No burnup data available</span>
-        </div>
+        <EmptyState title="No burnup data available" />
       </DashboardCard>
     );
   }
@@ -255,43 +220,43 @@ function BurnupCard({ currentSprint, currentProject }) {
       title={titleText}
       infoText={infoText}
       headerRight={headerRight}
-      className="col-span-12 md:col-span-6 lg:col-span-4 min-h-[320px]"
+      className="q-card--chart"
     >
       <div className="flex flex-col h-full justify-between pt-1 pb-2 px-1">
         {currentMetrics && (
-          <div className="grid grid-cols-5 gap-2 mb-3">
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Today's</span>
-              <div className="flex items-center justify-center gap-1 text-sm md:text-base font-bold text-[#3b82f6]">
+          <div className="q-chart-metrics grid grid-cols-5 gap-2 mb-3">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Today's</span>
+              <div className="flex items-center justify-center gap-1 text-sm md:text-base font-bold text-accent">
                 <span>{currentMetrics.todaysBurned ?? 0}</span>
-                {(currentMetrics.todaysBurned ?? 0) > 0 && <span className="text-xs text-emerald-400 font-extrabold">↗</span>}
+                {(currentMetrics.todaysBurned ?? 0) > 0 && <span className="text-xs text-success font-semibold">↗</span>}
               </div>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Yesterday's</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Yesterday's</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.yesterdaysBurned ?? 0}
               </span>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Target</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Target</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.target ?? 0}
               </span>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">Comple. TT</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">Comple. TT</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.compleTT ?? 0}
               </span>
             </div>
 
-            <div className="bg-[#141419] border border-white/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-inner">
-              <span className="text-[10px] md:text-[11px] font-medium text-slate-400 truncate">5 Spts. Avg</span>
-              <span className="text-sm md:text-base font-bold text-[#3b82f6]">
+            <div className="bg-raised border border-ink/5 rounded-xl p-2 text-center flex flex-col justify-center shadow-none">
+              <span className="text-[12px] md:text-[12px] font-medium text-muted truncate">5 Spts. Avg</span>
+              <span className="text-sm md:text-base font-bold text-accent">
                 {currentMetrics.fiveSptsAvg ?? 0}
               </span>
             </div>
@@ -319,7 +284,7 @@ function BurnupCard({ currentSprint, currentProject }) {
                     y={padTop}
                     width={rectWidth}
                     height={chartH}
-                    fill="#1e1e24"
+                    fill="var(--bg-control)"
                     fillOpacity="0.4"
                   />
                   <line
@@ -327,7 +292,7 @@ function BurnupCard({ currentSprint, currentProject }) {
                     y1={padTop}
                     x2={colLeft}
                     y2={padTop + chartH}
-                    stroke="#ffffff"
+                    stroke="var(--text-primary)"
                     strokeOpacity="0.07"
                     strokeDasharray="2 2"
                   />
@@ -336,7 +301,7 @@ function BurnupCard({ currentSprint, currentProject }) {
                     y1={padTop}
                     x2={colRight}
                     y2={padTop + chartH}
-                    stroke="#ffffff"
+                    stroke="var(--text-primary)"
                     strokeOpacity="0.07"
                     strokeDasharray="2 2"
                   />
@@ -354,14 +319,14 @@ function BurnupCard({ currentSprint, currentProject }) {
                     y1={yPos}
                     x2={svgWidth - padRight}
                     y2={yPos}
-                    stroke="#1e1e28"
+                    stroke="var(--chart-grid)"
                     strokeDasharray="3 3"
                     strokeWidth="1"
                   />
                   <text
                     x={padLeft - 6}
                     y={yPos + 3.5}
-                    fill="#94a3b8"
+                    fill="var(--text-secondary)"
                     fontSize="10"
                     fontFamily="monospace"
                     textAnchor="end"
@@ -379,7 +344,7 @@ function BurnupCard({ currentSprint, currentProject }) {
                   key={`xtick-${idx}`}
                   x={xPos}
                   y={svgHeight - 6}
-                  fill="#94a3b8"
+                  fill="var(--text-secondary)"
                   fontSize="9.5"
                   fontFamily="sans-serif"
                   textAnchor="middle"
@@ -393,7 +358,7 @@ function BurnupCard({ currentSprint, currentProject }) {
               <path
                 d={idealPathStr}
                 fill="none"
-                stroke="#f59e0b"
+                stroke="var(--warning)"
                 strokeWidth="2"
                 strokeDasharray="4 4"
                 strokeLinecap="round"
@@ -405,7 +370,7 @@ function BurnupCard({ currentSprint, currentProject }) {
               <path
                 d={actualPathStr}
                 fill="none"
-                stroke="#06b6d4"
+                stroke="var(--cyan)"
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -418,8 +383,8 @@ function BurnupCard({ currentSprint, currentProject }) {
                 cx={pt.x}
                 cy={pt.y}
                 r={hoverIndex === pt.idx ? "4.5" : "3"}
-                fill="#06b6d4"
-                stroke="#0c0c0e"
+                fill="var(--cyan)"
+                stroke="var(--bg-surface)"
                 strokeWidth="1.5"
                 className="transition-all duration-150 cursor-pointer"
                 onMouseEnter={() => setHoverIndex(pt.idx)}
@@ -434,7 +399,7 @@ function BurnupCard({ currentSprint, currentProject }) {
                   y1={padTop}
                   x2={getX(hoverIndex)}
                   y2={padTop + chartH}
-                  stroke="#ffffff"
+                  stroke="var(--text-primary)"
                   strokeOpacity="0.2"
                   strokeDasharray="2 2"
                 />
@@ -444,22 +409,22 @@ function BurnupCard({ currentSprint, currentProject }) {
 
           {hoverIndex !== null && hoverIndex >= 0 && hoverIndex < dates.length && (
             <div
-              className="absolute z-20 bg-[#141b2d]/95 border border-[#2b374e] rounded-lg px-2.5 py-1.5 shadow-xl text-xs text-white backdrop-blur-md pointer-events-none transform -translate-x-1/2 -translate-y-full"
+              className="absolute z-20 bg-raised/95 border border-line-strong rounded-lg px-2.5 py-1.5 shadow-none text-xs text-ink backdrop-blur-md pointer-events-none transform -translate-x-1/2 -translate-y-full"
               style={{
                 left: `${(getX(hoverIndex) / svgWidth) * 100}%`,
                 top: `${(Math.min(getY(actualLine[hoverIndex]) ?? (padTop + chartH / 2), getY(idealLine[hoverIndex]) ?? (padTop + chartH / 2)) / svgHeight) * 100 - 4}%`,
               }}
             >
-              <div className="font-bold text-slate-300 mb-0.5">{dates[hoverIndex]}</div>
+              <div className="font-bold text-ink mb-0.5">{dates[hoverIndex]}</div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-amber-500 inline-block" />
-                <span className="text-slate-400">Target Scope:</span>
-                <span className="font-mono font-bold text-amber-400">{idealLine[hoverIndex] ?? "N/A"} {unitMode}</span>
+                <span className="w-2 h-2 rounded-full bg-warning inline-block" />
+                <span className="text-muted">Target Scope:</span>
+                <span className="font-mono font-bold text-warning">{idealLine[hoverIndex] ?? "N/A"} {unitMode}</span>
               </div>
               <div className="flex items-center gap-2">
-                <span className="w-2 h-2 rounded-full bg-cyan-400 inline-block" />
-                <span className="text-slate-400">Completed:</span>
-                <span className="font-mono font-bold text-cyan-400">{actualLine[hoverIndex] ?? "N/A"} {unitMode}</span>
+                <span className="w-2 h-2 rounded-full bg-cyan inline-block" />
+                <span className="text-muted">Completed:</span>
+                <span className="font-mono font-bold text-cyan">{actualLine[hoverIndex] ?? "N/A"} {unitMode}</span>
               </div>
             </div>
           )}
@@ -467,12 +432,12 @@ function BurnupCard({ currentSprint, currentProject }) {
 
         <div className="flex items-center justify-center gap-6 mt-1 text-xs select-none">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 border-b-2 border-dashed border-amber-500" />
-            <span className="text-slate-400 font-medium">Scope Target</span>
+            <div className="w-4 h-0.5 border-b-2 border-dashed border-warning" />
+            <span className="text-muted font-medium">Scope Target</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-0.5 bg-cyan-400 rounded-full" />
-            <span className="text-slate-400 font-medium">Completed</span>
+            <div className="w-4 h-0.5 bg-cyan rounded-full" />
+            <span className="text-muted font-medium">Completed</span>
           </div>
         </div>
       </div>

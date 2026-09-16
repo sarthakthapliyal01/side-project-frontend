@@ -1,10 +1,15 @@
+import { PageHeader } from "./ui/ProductUI";
+import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
-import { Kanban, FileCode2, Layers } from "lucide-react";
-import { FaGithub } from "react-icons/fa";
+import { Kanban, Layers } from "lucide-react";
+import { FaGithub, FaGitlab } from "react-icons/fa";
+import { VscAzureDevops } from "react-icons/vsc";
 
-function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal, onOpenCapacityPlanning, onOpenRolesAndBilling }) {
+function IntegrationsPage({ onOpenJiraModal, onOpenAzureBoardsModal, onOpenGithubModal, onOpenGitlabModal, onOpenCapacityPlanning, onOpenRolesAndBilling }) {
   const [jiraConnected, setJiraConnected] = useState(false);
+  const [azureConnected, setAzureConnected] = useState(false);
   const [githubConnected, setGithubConnected] = useState(false);
+  const [gitlabConnected, setGitlabConnected] = useState(false);
   const [loading, setLoading] = useState(true);
 
   const companyName = localStorage.getItem("companyName") || "";
@@ -20,11 +25,23 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal, onOpenCapacityPl
         const data = await jiraRes.json();
         setJiraConnected(Boolean(data?.connected));
       }
+      // Check Azure Boards
+      const azureRes = await fetch(`http://127.0.0.1:8000/azure-boards/connection/${companyName}`).catch(() => null);
+      if (azureRes?.ok) {
+        const azData = await azureRes.json();
+        setAzureConnected(Boolean(azData?.connected));
+      }
       // Check GitHub
       const githubRes = await fetch(`http://127.0.0.1:8000/github/connection/${companyName}`).catch(() => null);
       if (githubRes?.ok) {
         const ghData = await githubRes.json();
         setGithubConnected(Boolean(ghData?.connected));
+      }
+      // Check GitLab
+      const gitlabRes = await fetch(`http://127.0.0.1:8000/gitlab/connection/${companyName}`).catch(() => null);
+      if (gitlabRes?.ok) {
+        const glData = await gitlabRes.json();
+        setGitlabConnected(Boolean(glData?.connected));
       }
     } catch (err) {
       console.error("Error checking integration status:", err);
@@ -37,130 +54,46 @@ function IntegrationsPage({ onOpenJiraModal, onOpenGithubModal, onOpenCapacityPl
     checkStatuses();
     const handleUpdate = () => checkStatuses();
     window.addEventListener("githubConnectionUpdated", handleUpdate);
+    window.addEventListener("gitlabConnectionUpdated", handleUpdate);
     window.addEventListener("jiraProjectsUpdated", handleUpdate);
+    window.addEventListener("azureBoardsConnectionUpdated", handleUpdate);
+    window.addEventListener("azureBoardsProjectsUpdated", handleUpdate);
     return () => {
       window.removeEventListener("githubConnectionUpdated", handleUpdate);
+      window.removeEventListener("gitlabConnectionUpdated", handleUpdate);
       window.removeEventListener("jiraProjectsUpdated", handleUpdate);
+      window.removeEventListener("azureBoardsConnectionUpdated", handleUpdate);
+      window.removeEventListener("azureBoardsProjectsUpdated", handleUpdate);
     };
   }, [companyName]);
 
-  return (
-    <div className="w-full min-h-full bg-transparent text-slate-100 p-6 md:p-8 lg:p-10 font-sans">
-      <div className="max-w-6xl mx-auto">
-
-        {/* 1. Ticket Sources Section */}
-        <section className="space-y-4 mb-10">
-          <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-            <Kanban size={20} className="text-[#999999]" />
-            <span>Ticket Sources</span>
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div 
-              onClick={onOpenJiraModal}
-              className={`group p-6 bg-[#0c0c0e]/90 backdrop-blur-xl border rounded-3xl transition-all duration-300 cursor-pointer shadow-2xl flex items-center justify-between ${
-                jiraConnected ? "border-white/40 bg-[#141418]" : "border-[#1e1e24] hover:border-white/20 hover:bg-[#121216]"
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#141418] border border-[#24242c] flex items-center justify-center text-white font-black text-2xl group-hover:scale-105 transition-transform shadow-inner shrink-0">
-                  J
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-white">Jira Software</h3>
-                  <p className="text-sm text-[#999999] mt-0.5 leading-relaxed">
-                    Sync issues, epics, sprint boards, and status completions
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenJiraModal();
-                }}
-                className={`px-6 py-2.5 rounded-full font-bold text-xs transition-all shadow-md shrink-0 cursor-pointer ${
-                  jiraConnected
-                    ? "bg-white/10 text-white border border-white/20 hover:bg-white/20"
-                    : "bg-white hover:bg-neutral-200 text-black shadow-white/10 active:scale-95"
-                }`}
-              >
-                {jiraConnected ? "Configured" : "Connect"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* 2. Code Sources Section */}
-        <section className="space-y-4 mb-10">
-          <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-            <FileCode2 size={20} className="text-[#999999]" />
-            <span>Code Sources</span>
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div 
-              onClick={onOpenGithubModal}
-              className={`group p-6 bg-[#0c0c0e]/90 backdrop-blur-xl border rounded-3xl transition-all duration-300 cursor-pointer shadow-2xl flex items-center justify-between ${
-                githubConnected ? "border-white/40 bg-[#141418]" : "border-[#1e1e24] hover:border-white/20 hover:bg-[#121216]"
-              }`}
-            >
-              <div className="flex items-center gap-4">
-                <div className="w-14 h-14 rounded-2xl bg-[#141418] border border-[#24242c] flex items-center justify-center text-white text-2xl group-hover:scale-105 transition-transform shadow-inner shrink-0">
-                  <FaGithub />
-                </div>
-                <div>
-                  <h3 className="font-bold text-lg text-white">GitHub Repositories</h3>
-                  <p className="text-sm text-[#999999] mt-0.5 leading-relaxed">
-                    Sync pull requests, commits, branches, and code metrics
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onOpenGithubModal();
-                }}
-                className={`px-6 py-2.5 rounded-full font-bold text-xs transition-all shadow-md shrink-0 cursor-pointer ${
-                  githubConnected
-                    ? "bg-white/10 text-white border border-white/20 hover:bg-white/20"
-                    : "bg-white hover:bg-neutral-200 text-black shadow-white/10 active:scale-95"
-                }`}
-              >
-                {githubConnected ? "Configured" : "Connect"}
-              </button>
-            </div>
-          </div>
-        </section>
-
-        {/* 3. Capacity Planning Section */}
-        <section className="space-y-4">
-          <h2 className="text-base font-bold text-white tracking-tight flex items-center gap-2">
-            <Layers size={20} className="text-[#999999]" />
-            <span>Capacity Planning</span>
-          </h2>
-
-          <div className="p-6 bg-[#0c0c0e]/90 backdrop-blur-xl border border-[#1e1e24] rounded-3xl shadow-2xl flex flex-wrap items-center gap-4">
-            <button
-              onClick={() => onOpenCapacityPlanning?.()}
-              className="px-5 py-2.5 bg-[#141418] hover:bg-[#1c1c24] border border-[#27272a] hover:border-white/30 rounded-xl text-xs md:text-sm font-semibold text-white transition-all cursor-pointer shadow-md"
-            >
-              Capacity Planning
-            </button>
-
-            <button
-              onClick={() => onOpenRolesAndBilling?.()}
-              className="px-5 py-2.5 bg-[#141418] hover:bg-[#1c1c24] border border-[#27272a] hover:border-white/30 rounded-xl text-xs md:text-sm font-semibold text-slate-300 hover:text-white transition-all cursor-pointer shadow-md"
-            >
-              Roles & Rate Card
-            </button>
-          </div>
-        </section>
-
+  const providers = [
+    { name: "Jira Software", category: "Ticket sources", description: "Issues, epics, sprint boards, and workflow status.", icon: <Kanban size={23} />, color: "var(--accent)", connected: jiraConnected, open: onOpenJiraModal },
+    { name: "Microsoft Azure Boards", category: "Ticket sources", description: "Azure DevOps work items, features, tasks, and bugs.", icon: <VscAzureDevops />, color: "var(--cyan)", connected: azureConnected, open: onOpenAzureBoardsModal },
+    { name: "GitHub Repositories", category: "Code sources", description: "Pull requests, commits, branches, and code metrics.", icon: <FaGithub />, color: "var(--text-primary)", connected: githubConnected, open: onOpenGithubModal },
+    { name: "GitLab Repositories", category: "Code sources", description: "Merge requests, commits, branches, and code metrics.", icon: <FaGitlab />, color: "var(--warning)", connected: gitlabConnected, open: onOpenGitlabModal },
+  ];
+  return <section className="q-page">
+    <PageHeader eyebrow="Workspace configuration" title="Connect your tools." description="Bring your tickets and code together for a shared view of delivery." />
+    <section className="q-integration-grid" aria-label="Available integrations">
+      {providers.map(p => <article className="q-integration" key={p.name}>
+        <div className="q-integration-top">
+          <div className="q-provider-icon" style={{color:p.color}} aria-hidden="true">{p.icon}</div>
+          <div><span className="q-integration-category">{p.category}</span><h3>{p.name}</h3></div>
+        </div>
+        <p>{p.description}</p>
+        <div className="q-integration-bottom">
+          <span className="q-badge" data-success={p.connected}><i />{loading ? "CHECKING" : p.connected ? "CONFIGURED" : "NOT CONNECTED"}</span>
+          <button className="q-button" onClick={p.open} aria-label={`${p.connected ? "Configure" : "Connect"} ${p.name}`}>{p.connected ? "Configure" : "Connect"}<ArrowUpRight size={14} /></button>
+        </div>
+      </article>)}
+    </section>
+    <section className="q-integration-section"><h2 className="q-section-title"><Layers />Capacity planning</h2>
+      <div className="q-settings-links">
+        <button onClick={() => onOpenCapacityPlanning?.()}><span>Capacity planning<small>Manage team allocation and sprint availability.</small></span><ChevronRight size={18} /></button>
+        <button onClick={() => onOpenRolesAndBilling?.()}><span>Roles & rate card<small>Set team roles and default billing rates.</small></span><ChevronRight size={18} /></button>
       </div>
-    </div>
-  );
+    </section>
+  </section>;
 }
-
 export default IntegrationsPage;

@@ -1,3 +1,4 @@
+import { PageHeader } from "./ui/ProductUI";
 import React, { useState, useEffect, useCallback } from "react";
 import {
   ChurnCard,
@@ -9,6 +10,7 @@ import {
   PullRequestsSummaryCard,
   PRsTableCard,
   SprintIssuesCard,
+  ReleaseBurndownCard,
 } from "./standup/index";
 
 function Standup({ onOpenCapacityDetails }) {
@@ -28,6 +30,20 @@ function Standup({ onOpenCapacityDetails }) {
   const [loadingSprints, setLoadingSprints] = useState(false);
   const [selectedRepo, setSelectedRepo] = useState(() => localStorage.getItem("selectedRepo") || "All repositories");
 
+  const [filterType, setFilterType] = useState(() => localStorage.getItem("selectedFilterType") || "Sprint");
+  const [currentRelease, setCurrentRelease] = useState(() => {
+    const saved = localStorage.getItem("selectedRelease");
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        return String(parsed?.releaseName || parsed?.name || parsed?.id || "");
+      } catch {}
+    }
+    return "";
+  });
+
+  const isReleaseMode = filterType === "Release";
+
   const [prData, setPrData] = useState({
     summary: {
       totalPRs: 0,
@@ -42,13 +58,25 @@ function Standup({ onOpenCapacityDetails }) {
     prs: []
   });
 
-  // Global Project & Sprint Selection Listeners
+  // Global Project, Sprint, Release & Filter Type Listeners
   useEffect(() => {
     const handleSprintSelected = (e) => {
-      const sprintObj = e?.detail;
-      if (sprintObj) {
-        const sid = String(sprintObj.id || sprintObj.sprintId || sprintObj.name || "");
-        setCurrentSprint(sid);
+      const obj = e?.detail;
+      if (obj) {
+        if (obj.isRelease) {
+          const rName = String(obj.releaseName || obj.name || obj.id || "");
+          setCurrentRelease(rName);
+        } else {
+          const sid = String(obj.id || obj.sprintId || obj.name || "");
+          setCurrentSprint(sid);
+        }
+      }
+    };
+    const handleReleaseSelected = (e) => {
+      const relObj = e?.detail;
+      if (relObj) {
+        const rName = String(relObj.releaseName || relObj.name || relObj.id || "");
+        setCurrentRelease(rName);
       }
     };
     const handleProjectSelected = (e) => {
@@ -57,12 +85,22 @@ function Standup({ onOpenCapacityDetails }) {
         setCurrentProject(String(pid));
       }
     };
+    const handleFilterTypeChanged = (e) => {
+      const ft = e?.detail;
+      if (ft) {
+        setFilterType(String(ft));
+      }
+    };
 
     window.addEventListener("sprintSelected", handleSprintSelected);
+    window.addEventListener("releaseSelected", handleReleaseSelected);
     window.addEventListener("projectSelected", handleProjectSelected);
+    window.addEventListener("filterTypeChanged", handleFilterTypeChanged);
     return () => {
       window.removeEventListener("sprintSelected", handleSprintSelected);
+      window.removeEventListener("releaseSelected", handleReleaseSelected);
       window.removeEventListener("projectSelected", handleProjectSelected);
+      window.removeEventListener("filterTypeChanged", handleFilterTypeChanged);
     };
   }, []);
 
@@ -192,21 +230,62 @@ function Standup({ onOpenCapacityDetails }) {
   }, [selectedRepo]);
 
   return (
-    <div className="w-full h-full bg-transparent font-sans text-white px-6 md:px-8 py-4 md:py-6 box-border">
-      <div className="grid grid-cols-12 gap-5 md:gap-6 pb-8">
-        <ChurnCard currentProject={currentProject} currentSprint={currentSprint} sprints={sprints} />
+    <div className="q-page">
+      <PageHeader eyebrow="Daily delivery" title="Standup" description="Sprint health, team capacity, and delivery progress." /><div className="q-dashboard">
+        <ChurnCard
+          currentProject={currentProject}
+          currentSprint={currentSprint}
+          currentRelease={currentRelease}
+          isRelease={isReleaseMode}
+          sprints={sprints}
+        />
         <CapacityCard
           currentSprint={currentSprint}
           currentProject={currentProject}
+          currentRelease={currentRelease}
+          isRelease={isReleaseMode}
           onOpenCapacityDetails={onOpenCapacityDetails}
         />
-        <JiraStatusCard currentSprint={currentSprint} currentProject={currentProject} />
-        <BurndownCard currentSprint={currentSprint} currentProject={currentProject} />
-        <BurnupCard currentSprint={currentSprint} currentProject={currentProject} />
-        <SprintGoalSuccessCard currentProject={currentProject} />
-        <PullRequestsSummaryCard summary={prData.summary} />
-        <PRsTableCard prs={prData.prs} />
-        <SprintIssuesCard currentSprint={currentSprint} currentProject={currentProject} prs={prData.prs} />
+        <JiraStatusCard
+          currentSprint={currentSprint}
+          currentProject={currentProject}
+          currentRelease={currentRelease}
+          isRelease={isReleaseMode}
+        />
+        {isReleaseMode ? (
+          <>
+            <div style={{ gridColumn: "1 / -1" }}>
+              <ReleaseBurndownCard
+                currentRelease={currentRelease}
+                currentProject={currentProject}
+              />
+            </div>
+            <PullRequestsSummaryCard summary={prData.summary} />
+            <PRsTableCard prs={prData.prs} />
+            <SprintIssuesCard
+              currentSprint={currentSprint}
+              currentProject={currentProject}
+              currentRelease={currentRelease}
+              isRelease={true}
+              prs={prData.prs}
+            />
+          </>
+        ) : (
+          <>
+            <BurndownCard currentSprint={currentSprint} currentProject={currentProject} />
+            <BurnupCard currentSprint={currentSprint} currentProject={currentProject} />
+            <SprintGoalSuccessCard currentProject={currentProject} />
+            <PullRequestsSummaryCard summary={prData.summary} />
+            <PRsTableCard prs={prData.prs} />
+            <SprintIssuesCard
+              currentSprint={currentSprint}
+              currentProject={currentProject}
+              currentRelease={currentRelease}
+              isRelease={false}
+              prs={prData.prs}
+            />
+          </>
+        )}
       </div>
     </div>
   );
