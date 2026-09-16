@@ -15,7 +15,7 @@ import GitLabIntegration from "./components/GitlabIntegration";
 import IntegrationsPage from "./components/IntegrationsPage";
 import QMetry360 from "./components/QMetry360";
 import CapacityPlanning from "./Pages/CapacityPlanning";
-import RolesAndBilling from "./Pages/RolesAndBilling";
+import { API_BASE_URL } from "./utils/api";
 
 function App() {
   const [organizationCreated, setOrganizationCreated] = useState(() => Boolean(localStorage.getItem("companyName")));
@@ -62,7 +62,7 @@ function App() {
     if (!isAuthenticated || !user) return;
     const companyName = localStorage.getItem("companyName");
 
-    fetch("http://127.0.0.1:8000/users", {
+    fetch(`${API_BASE_URL}/users`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({

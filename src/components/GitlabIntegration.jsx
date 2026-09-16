@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaGitlab } from "react-icons/fa";
@@ -17,7 +18,7 @@ function GitLabIntegration({ companyName }) {
   useEffect(() => {
     if (!comp) return;
     axios
-      .get(`http://127.0.0.1:8000/gitlab/connection/${comp}`)
+      .get(`${API_BASE_URL}/gitlab/connection/${comp}`)
       .then((res) => {
         if (res.data?.connected) {
           setConnected(true);
@@ -49,7 +50,7 @@ function GitLabIntegration({ companyName }) {
 
     try {
       // 1. Test connection
-      const testRes = await axios.post("http://127.0.0.1:8000/gitlab/test-connection", {
+      const testRes = await axios.post("${API_BASE_URL}/gitlab/test-connection", {
         gitlab_url: gitlabUrl.trim() || "https://gitlab.com",
         gitlab_owner: gitlabOwner.trim(),
         gitlab_token: gitlabToken.trim(),
@@ -61,7 +62,7 @@ function GitLabIntegration({ companyName }) {
 
       // 2. Save connection
       toast.loading("Saving connection...", { id: toastId });
-      await axios.post("http://127.0.0.1:8000/gitlab/save-connection", {
+      await axios.post("${API_BASE_URL}/gitlab/save-connection", {
         companyName: comp,
         gitlab_url: gitlabUrl.trim() || "https://gitlab.com",
         gitlab_owner: gitlabOwner.trim(),
@@ -70,7 +71,7 @@ function GitLabIntegration({ companyName }) {
 
       // 3. Sync repositories
       toast.loading("Fetching GitLab projects...", { id: toastId });
-      await axios.post(`http://127.0.0.1:8000/gitlab/sync-repos/${comp}`).catch(() => {});
+      await axios.post(`${API_BASE_URL}/gitlab/sync-repos/${comp}`).catch(() => {});
 
       window.dispatchEvent(new CustomEvent("gitlabConnectionUpdated"));
       window.dispatchEvent(new CustomEvent("gitlabReposUpdated"));

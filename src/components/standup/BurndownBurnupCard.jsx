@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../utils/api";
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardCard from "./DashboardCard";
 
@@ -51,7 +52,7 @@ function BurndownBurnupCard({ currentSprint, currentProject }) {
     params.append("_t", String(Date.now()));
 
     const endpoint = chartType === "burndown" ? "burndown" : "burnup";
-    const url = `http://127.0.0.1:8000/jira/${endpoint}/${companyName}?${params.toString()}`;
+    const url = `${API_BASE_URL}/jira/${endpoint}/${companyName}?${params.toString()}`;
 
     setLoading(true);
     fetch(url, { cache: "no-store" })

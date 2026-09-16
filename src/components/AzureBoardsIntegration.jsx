@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { VscAzureDevops } from "react-icons/vsc";
@@ -30,7 +31,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
     }
 
     axios
-      .get(`http://127.0.0.1:8000/azure-boards/connection/${companyName}`)
+      .get(`${API_BASE_URL}/azure-boards/connection/${companyName}`)
       .then(async (res) => {
         if (res.data?.connected) {
           setIsConnected(true);
@@ -46,16 +47,16 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
 
           // Fetch stored projects
           let projRes = await axios
-            .get(`http://127.0.0.1:8000/azure-boards/projects/${companyName}`)
+            .get(`${API_BASE_URL}/azure-boards/projects/${companyName}`)
             .catch(() => null);
 
           if (!projRes?.data?.projects || projRes.data.projects.length === 0) {
             // Auto sync projects if empty
             await axios
-              .post(`http://127.0.0.1:8000/azure-boards/sync-projects/${companyName}`)
+              .post(`${API_BASE_URL}/azure-boards/sync-projects/${companyName}`)
               .catch(() => {});
             projRes = await axios
-              .get(`http://127.0.0.1:8000/azure-boards/projects/${companyName}`)
+              .get(`${API_BASE_URL}/azure-boards/projects/${companyName}`)
               .catch(() => null);
           }
 
@@ -105,7 +106,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
 
     if (companyName) {
       axios
-        .put(`http://127.0.0.1:8000/azure-boards/project-selection/${companyName}`, {
+        .put(`${API_BASE_URL}/azure-boards/project-selection/${companyName}`, {
           projectId,
           isSelected: nextState,
         })
@@ -130,7 +131,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
     if (companyName && filteredProjects.length > 0) {
       Promise.all(
         filteredProjects.map((p) =>
-          axios.put(`http://127.0.0.1:8000/azure-boards/project-selection/${companyName}`, {
+          axios.put(`${API_BASE_URL}/azure-boards/project-selection/${companyName}`, {
             projectId: p.projectId,
             isSelected: targetStatus,
           })
@@ -164,7 +165,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
 
     try {
       // 1. Test connection
-      const testRes = await axios.post("http://127.0.0.1:8000/azure-boards/test-connection", {
+      const testRes = await axios.post("${API_BASE_URL}/azure-boards/test-connection", {
         organization: formData.organization.trim(),
         pat: formData.pat.trim(),
         azure_url: formData.azureUrl.trim() || "https://dev.azure.com",
@@ -176,7 +177,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
 
       // 2. Save connection
       toast.loading("Saving connection...", { id: toastId });
-      await axios.post("http://127.0.0.1:8000/azure-boards/save-connection", {
+      await axios.post("${API_BASE_URL}/azure-boards/save-connection", {
         companyName,
         organization: formData.organization.trim(),
         pat: formData.pat.trim(),
@@ -185,7 +186,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
 
       // 3. Sync projects from Azure DevOps
       toast.loading("Fetching projects from Azure DevOps...", { id: toastId });
-      const syncRes = await axios.post(`http://127.0.0.1:8000/azure-boards/sync-projects/${companyName}`);
+      const syncRes = await axios.post(`${API_BASE_URL}/azure-boards/sync-projects/${companyName}`);
 
       if (syncRes.data?.projects) {
         setProjects(syncRes.data.projects);
@@ -193,7 +194,7 @@ function AzureBoardsIntegration({ onClose, embedded = false }) {
 
       // 4. Sync work items
       toast.loading("Syncing Azure Boards work items...", { id: toastId });
-      await axios.post(`http://127.0.0.1:8000/azure-boards/sync-work-items/${companyName}`).catch(() => {});
+      await axios.post(`${API_BASE_URL}/azure-boards/sync-work-items/${companyName}`).catch(() => {});
 
       window.dispatchEvent(new Event("azureBoardsConnectionUpdated"));
       window.dispatchEvent(new Event("azureBoardsProjectsUpdated"));

@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../utils/api";
 import React, { useEffect, useState, useCallback } from "react";
 import DashboardCard from "./DashboardCard";
 import { getActiveTargetParams } from "../../utils/targetHelper";
@@ -51,7 +52,7 @@ function JiraStatusCard({ currentSprint, currentProject, currentRelease, isRelea
     if (targetProject) params.append("project_id", targetProject);
     params.append("_t", String(Date.now()));
 
-    const url = `http://127.0.0.1:8000/jira/sprint-issues/${companyName}?${params.toString()}`;
+    const url = `${API_BASE_URL}/jira/sprint-issues/${companyName}?${params.toString()}`;
 
     fetch(url, { cache: "no-store", signal })
       .then((res) => res.ok && res.json())

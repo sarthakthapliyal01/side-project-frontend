@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { useState, useEffect } from "react";
 import { Search, Info, X, Check, Loader2 } from "lucide-react";
 import toast from "react-hot-toast";
@@ -21,7 +22,7 @@ function JiraIntegration({ onClose, embedded = false }) {
       return;
     }
 
-    fetch(`http://127.0.0.1:8000/jira/connection/${companyName}`)
+    fetch(`${API_BASE_URL}/jira/connection/${companyName}`)
       .then((res) => (res.ok ? res.json() : { connected: false }))
       .then(async (connData) => {
         if (connData?.connected) {
@@ -35,12 +36,12 @@ function JiraIntegration({ onClose, embedded = false }) {
               apiToken: connData.jira_token || "",
             }));
           }
-          let projRes = await fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
+          let projRes = await fetch(`${API_BASE_URL}/jira/projects/${companyName}`);
           let projData = projRes.ok ? await projRes.json() : null;
           
           if (!projData?.projects || projData.projects.length === 0) {
-            await fetch(`http://127.0.0.1:8000/jira/sync-projects/${companyName}`, { method: "POST" }).catch(() => {});
-            projRes = await fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
+            await fetch(`${API_BASE_URL}/jira/sync-projects/${companyName}`, { method: "POST" }).catch(() => {});
+            projRes = await fetch(`${API_BASE_URL}/jira/projects/${companyName}`);
             projData = projRes.ok ? await projRes.json() : null;
           }
 
@@ -91,7 +92,7 @@ function JiraIntegration({ onClose, embedded = false }) {
     );
 
     if (companyName) {
-      fetch(`http://127.0.0.1:8000/jira/project-selection/${companyName}`, {
+      fetch(`${API_BASE_URL}/jira/project-selection/${companyName}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ projectId, isSelected: nextState }),
@@ -118,7 +119,7 @@ function JiraIntegration({ onClose, embedded = false }) {
     if (companyName && filteredProjects.length > 0) {
       Promise.all(
         filteredProjects.map((p) =>
-          fetch(`http://127.0.0.1:8000/jira/project-selection/${companyName}`, {
+          fetch(`${API_BASE_URL}/jira/project-selection/${companyName}`, {
             method: "PUT",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ projectId: p.projectId, isSelected: targetStatus }),
@@ -146,7 +147,7 @@ function JiraIntegration({ onClose, embedded = false }) {
 
     try {
       // 1. Save Jira connection
-      const saveRes = await fetch("http://127.0.0.1:8000/jira/save-connection", {
+      const saveRes = await fetch("${API_BASE_URL}/jira/save-connection", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -164,7 +165,7 @@ function JiraIntegration({ onClose, embedded = false }) {
 
       // 2. Sync Projects from Jira API
       toast.loading("Fetching projects from Jira...", { id: toastId });
-      const syncProjRes = await fetch(`http://127.0.0.1:8000/jira/sync-projects/${companyName}`, {
+      const syncProjRes = await fetch(`${API_BASE_URL}/jira/sync-projects/${companyName}`, {
         method: "POST",
       });
 
@@ -174,7 +175,7 @@ function JiraIntegration({ onClose, embedded = false }) {
       }
 
       // 3. Fetch synced projects list so modal lists projects immediately
-      const projRes = await fetch(`http://127.0.0.1:8000/jira/projects/${companyName}`);
+      const projRes = await fetch(`${API_BASE_URL}/jira/projects/${companyName}`);
       if (projRes.ok) {
         const projData = await projRes.json();
         setProjects(projData.projects || []);
@@ -182,7 +183,7 @@ function JiraIntegration({ onClose, embedded = false }) {
 
       // 4. Orchestrated Sync: Sync Boards, Sprints & Sprint Issues to MongoDB
       toast.loading("Syncing boards, sprints & issues to MongoDB...", { id: toastId });
-      await fetch(`http://127.0.0.1:8000/jira/sync-all/${companyName}`, { method: "POST" }).catch(() => {});
+      await fetch(`${API_BASE_URL}/jira/sync-all/${companyName}`, { method: "POST" }).catch(() => {});
 
       // Notify Topbar and all UI components in real time
       window.dispatchEvent(new CustomEvent("jiraProjectsUpdated"));

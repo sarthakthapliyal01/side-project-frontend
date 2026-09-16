@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { PageHeader } from "./ui/ProductUI";
 import { ArrowUpRight, ChevronRight } from "lucide-react";
 import { useState, useEffect } from "react";
@@ -20,25 +21,25 @@ function IntegrationsPage({ onOpenJiraModal, onOpenAzureBoardsModal, onOpenGithu
     setLoading(true);
     try {
       // Check Jira
-      const jiraRes = await fetch(`http://127.0.0.1:8000/jira/connection/${companyName}`).catch(() => null);
+      const jiraRes = await fetch(`${API_BASE_URL}/jira/connection/${companyName}`).catch(() => null);
       if (jiraRes?.ok) {
         const data = await jiraRes.json();
         setJiraConnected(Boolean(data?.connected));
       }
       // Check Azure Boards
-      const azureRes = await fetch(`http://127.0.0.1:8000/azure-boards/connection/${companyName}`).catch(() => null);
+      const azureRes = await fetch(`${API_BASE_URL}/azure-boards/connection/${companyName}`).catch(() => null);
       if (azureRes?.ok) {
         const azData = await azureRes.json();
         setAzureConnected(Boolean(azData?.connected));
       }
       // Check GitHub
-      const githubRes = await fetch(`http://127.0.0.1:8000/github/connection/${companyName}`).catch(() => null);
+      const githubRes = await fetch(`${API_BASE_URL}/github/connection/${companyName}`).catch(() => null);
       if (githubRes?.ok) {
         const ghData = await githubRes.json();
         setGithubConnected(Boolean(ghData?.connected));
       }
       // Check GitLab
-      const gitlabRes = await fetch(`http://127.0.0.1:8000/gitlab/connection/${companyName}`).catch(() => null);
+      const gitlabRes = await fetch(`${API_BASE_URL}/gitlab/connection/${companyName}`).catch(() => null);
       if (gitlabRes?.ok) {
         const glData = await gitlabRes.json();
         setGitlabConnected(Boolean(glData?.connected));

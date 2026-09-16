@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { PageHeader } from "../components/ui/ProductUI";
 import { useState, useEffect } from "react";
 import { ArrowLeft, Search, Plus, Save, Loader2 } from "lucide-react";
@@ -43,7 +44,7 @@ function CapacityPlanning({ onBack, user }) {
   useEffect(() => {
     if (!companyName) return;
 
-    fetch(`http://127.0.0.1:8000/jira/selected-projects/${companyName}`)
+    fetch(`${API_BASE_URL}/jira/selected-projects/${companyName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         const projects = data.projects || data;
@@ -62,8 +63,8 @@ function CapacityPlanning({ onBack, user }) {
     if (!companyName) return;
 
     const url = currentProject
-      ? `http://127.0.0.1:8000/jira/sprints/${companyName}?project_id=${currentProject}`
-      : `http://127.0.0.1:8000/jira/sprints/${companyName}`;
+      ? `${API_BASE_URL}/jira/sprints/${companyName}?project_id=${currentProject}`
+      : `${API_BASE_URL}/jira/sprints/${companyName}`;
 
     fetch(url)
       .then((res) => res.ok && res.json())
@@ -101,8 +102,8 @@ function CapacityPlanning({ onBack, user }) {
   useEffect(() => {
     if (!companyName) return;
     const url = currentProject
-      ? `http://127.0.0.1:8000/jira/releases/${companyName}?project_id=${currentProject}`
-      : `http://127.0.0.1:8000/jira/releases/${companyName}`;
+      ? `${API_BASE_URL}/jira/releases/${companyName}?project_id=${currentProject}`
+      : `${API_BASE_URL}/jira/releases/${companyName}`;
 
     fetch(url)
       .then((res) => res.ok && res.json())
@@ -160,7 +161,7 @@ function CapacityPlanning({ onBack, user }) {
       }
     }
 
-    fetch(`http://127.0.0.1:8000/jira/roles-billing/${companyName}`)
+    fetch(`${API_BASE_URL}/jira/roles-billing/${companyName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data?.roles && Array.isArray(data.roles) && data.roles.length > 0) {
@@ -200,8 +201,8 @@ function CapacityPlanning({ onBack, user }) {
 
     // Parallel fetch real Jira sprint issues + capacity endpoint
     Promise.all([
-      fetch(`http://127.0.0.1:8000/jira/sprint-issues/${companyName}?${params.toString()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
-      fetch(`http://127.0.0.1:8000/jira/capacity-data/${companyName}?${params.toString()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(`${API_BASE_URL}/jira/sprint-issues/${companyName}?${params.toString()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
+      fetch(`${API_BASE_URL}/jira/capacity-data/${companyName}?${params.toString()}`).then((r) => (r.ok ? r.json() : null)).catch(() => null),
     ])
       .then(([issuesData, capacityData]) => {
         let totalSprintSP = 0;
@@ -475,7 +476,7 @@ function CapacityPlanning({ onBack, user }) {
       payload.sprint_id = currentSprint;
     }
 
-    fetch(`http://127.0.0.1:8000/jira/save-capacity/${companyName}`, {
+    fetch(`${API_BASE_URL}/jira/save-capacity/${companyName}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

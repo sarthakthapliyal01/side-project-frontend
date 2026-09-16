@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { ArrowLeft, Plus, Save, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import toast from "react-hot-toast";
+import { API_BASE_URL } from "../utils/api";
 
 function RolesAndBilling({ onBack }) {
   const companyName = localStorage.getItem("companyName") || "Trigent";
@@ -31,7 +32,7 @@ function RolesAndBilling({ onBack }) {
     }
 
     // Fetch from backend API
-    fetch(`http://127.0.0.1:8000/jira/roles-billing/${companyName}`)
+    fetch(`${API_BASE_URL}/jira/roles-billing/${companyName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data?.roles && Array.isArray(data.roles) && data.roles.length > 0) {
@@ -89,7 +90,7 @@ function RolesAndBilling({ onBack }) {
     window.dispatchEvent(new CustomEvent("rolesUpdated"));
 
     try {
-      const res = await fetch(`http://127.0.0.1:8000/jira/roles-billing/${companyName}`, {
+      const res = await fetch(`${API_BASE_URL}/jira/roles-billing/${companyName}`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ roles: cleaned }),

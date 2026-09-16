@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { PageHeader } from "./ui/ProductUI";
 import React, { useEffect, useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
@@ -91,7 +92,7 @@ function QMetry360() {
       if (targetSprintId) params.append("sprint_id", targetSprintId);
       if (targetProject) params.append("project_id", targetProject);
       const queryParam = params.toString() ? `?${params.toString()}` : "";
-      const url = `http://127.0.0.1:8000/jira/sprint-issues/${encodeURIComponent(
+      const url = `${API_BASE_URL}/jira/sprint-issues/${encodeURIComponent(
         companyName
       )}${queryParam}`;
 
@@ -103,7 +104,7 @@ function QMetry360() {
         // If no issues found in DB, attempt a sync from Jira API
         if (issues.length === 0) {
           const syncRes = await fetch(
-            `http://127.0.0.1:8000/jira/sync-all/${encodeURIComponent(companyName)}`,
+            `${API_BASE_URL}/jira/sync-all/${encodeURIComponent(companyName)}`,
             { method: "POST" }
           );
           if (syncRes.ok) {

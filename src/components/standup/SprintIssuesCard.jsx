@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../utils/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { Filter, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from "lucide-react";
 import { getActiveTargetParams } from "../../utils/targetHelper";
@@ -34,7 +35,7 @@ function SprintIssuesCard({ currentSprint, currentProject, currentRelease, isRel
     params.append("_t", String(Date.now()));
 
     const queryString = params.toString();
-    const primaryUrl = `http://127.0.0.1:8000/jira/sprint-issues/${companyName}?${queryString}`;
+    const primaryUrl = `${API_BASE_URL}/jira/sprint-issues/${companyName}?${queryString}`;
 
     fetch(primaryUrl, { signal })
       .then((res) => res.ok && res.json())

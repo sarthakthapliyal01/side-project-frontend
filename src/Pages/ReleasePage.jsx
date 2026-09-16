@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { PageHeader } from "../components/ui/ProductUI";
 import React, { useState, useEffect } from "react";
 import {
@@ -79,8 +80,8 @@ function ReleasePage({ user, companyName, onOpenCapacityDetails }) {
     if (!compName) return;
 
     const url = selectedRepo && selectedRepo !== "All repositories"
-      ? `http://127.0.0.1:8000/github/prs/${compName}?repo_name=${encodeURIComponent(selectedRepo)}`
-      : `http://127.0.0.1:8000/github/prs/${compName}`;
+      ? `${API_BASE_URL}/github/prs/${compName}?repo_name=${encodeURIComponent(selectedRepo)}`
+      : `${API_BASE_URL}/github/prs/${compName}`;
 
     fetch(url)
       .then((res) => res.ok && res.json())

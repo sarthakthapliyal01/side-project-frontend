@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { PageHeader } from "./ui/ProductUI";
 import React, { useState, useEffect, useCallback } from "react";
 import {
@@ -109,7 +110,7 @@ function Standup({ onOpenCapacityDetails }) {
     const companyName = localStorage.getItem("companyName");
     if (!companyName) return;
 
-    fetch(`http://127.0.0.1:8000/jira/selected-projects/${companyName}`)
+    fetch(`${API_BASE_URL}/jira/selected-projects/${companyName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         const projects = data.projects || data;
@@ -145,8 +146,8 @@ function Standup({ onOpenCapacityDetails }) {
     setLoadingSprints(true);
 
     const url = currentProject
-      ? `http://127.0.0.1:8000/jira/sprints/${companyName}?project_id=${currentProject}`
-      : `http://127.0.0.1:8000/jira/sprints/${companyName}`;
+      ? `${API_BASE_URL}/jira/sprints/${companyName}?project_id=${currentProject}`
+      : `${API_BASE_URL}/jira/sprints/${companyName}`;
 
     fetch(url)
       .then((res) => res.ok && res.json())
@@ -205,8 +206,8 @@ function Standup({ onOpenCapacityDetails }) {
     if (!companyName) return;
 
     const url = selectedRepo && selectedRepo !== "All repositories"
-      ? `http://127.0.0.1:8000/github/prs/${companyName}?repo_name=${encodeURIComponent(selectedRepo)}`
-      : `http://127.0.0.1:8000/github/prs/${companyName}`;
+      ? `${API_BASE_URL}/github/prs/${companyName}?repo_name=${encodeURIComponent(selectedRepo)}`
+      : `${API_BASE_URL}/github/prs/${companyName}`;
 
     fetch(url)
       .then((res) => res.ok && res.json())

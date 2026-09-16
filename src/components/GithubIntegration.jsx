@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { useState, useEffect } from "react";
 import axios from "axios";
 import { FaGithub } from "react-icons/fa";
@@ -16,7 +17,7 @@ function GitHubIntegration({ companyName }) {
   useEffect(() => {
     if (!comp) return;
     axios
-      .get(`http://localhost:8000/github/connection/${comp}`)
+      .get(`${API_BASE_URL}/github/connection/${comp}`)
       .then((res) => {
         if (res.data?.connected) {
           setConnected(true);
@@ -45,7 +46,7 @@ function GitHubIntegration({ companyName }) {
 
     try {
       // 1. Test connection
-      const testRes = await axios.post("http://localhost:8000/github/test-connection", {
+      const testRes = await axios.post("${API_BASE_URL}/github/test-connection", {
         github_owner: githubOwner,
         github_token: githubToken,
       });
@@ -56,7 +57,7 @@ function GitHubIntegration({ companyName }) {
 
       // 2. Save connection
       toast.loading("Saving connection...", { id: toastId });
-      await axios.post("http://localhost:8000/github/save-connection", {
+      await axios.post("${API_BASE_URL}/github/save-connection", {
         companyName: comp,
         github_owner: githubOwner,
         github_token: githubToken,
@@ -64,7 +65,7 @@ function GitHubIntegration({ companyName }) {
 
       // 3. Sync repositories ONLY (PR data will sync when user clicks Sync button in Standup)
       toast.loading("Fetching GitHub repositories...", { id: toastId });
-      await axios.post(`http://localhost:8000/github/sync-repos/${comp}`).catch(() => {});
+      await axios.post(`${API_BASE_URL}/github/sync-repos/${comp}`).catch(() => {});
 
       window.dispatchEvent(new CustomEvent("githubConnectionUpdated"));
       window.dispatchEvent(new CustomEvent("githubReposUpdated"));

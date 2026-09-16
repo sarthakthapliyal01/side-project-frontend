@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../utils/api";
 import { Modal, EmptyState } from "../ui/ProductUI";
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { Info } from "lucide-react";
@@ -50,7 +51,7 @@ function SprintChurnModal({ onClose, currentProject, currentRelease, isRelease, 
     if (isRelMode && relName) params.append("release_name", relName);
     params.append("include_bugs", includeBugs);
 
-    fetch(`http://127.0.0.1:8000/jira/churn-data/${companyName}?${params.toString()}`)
+    fetch(`${API_BASE_URL}/jira/churn-data/${companyName}?${params.toString()}`)
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (data?.churnData && Array.isArray(data.churnData) && data.churnData.length > 0) {
@@ -195,7 +196,7 @@ function ChurnCard({ currentProject, currentSprint, currentRelease, isRelease, s
     params.append("include_bugs", includeBugs);
     params.append("_t", String(Date.now()));
 
-    fetch(`http://127.0.0.1:8000/jira/churn-data/${companyName}?${params.toString()}`, { signal })
+    fetch(`${API_BASE_URL}/jira/churn-data/${companyName}?${params.toString()}`, { signal })
       .then((res) => (res.ok ? res.json() : null))
       .then((data) => {
         if (signal?.aborted) return;

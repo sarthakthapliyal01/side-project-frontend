@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../utils/api";
 import { useEffect, useState } from "react";
 import toast from "react-hot-toast";
 import {
@@ -67,7 +68,7 @@ function Topbar({ user, companyName, logout, currentPage, onToggleNav, navOpen, 
   const fetchProjects = () => {
     if (!compName) return;
 
-    fetch(`http://127.0.0.1:8000/jira/selected-projects/${compName}`)
+    fetch(`${API_BASE_URL}/jira/selected-projects/${compName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         const fetchedProjects = data.projects || data;
@@ -108,7 +109,7 @@ function Topbar({ user, companyName, logout, currentPage, onToggleNav, navOpen, 
   const fetchRepos = () => {
     if (!compName) return;
 
-    fetch(`http://127.0.0.1:8000/github/repos/${compName}`)
+    fetch(`${API_BASE_URL}/github/repos/${compName}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data?.repos && Array.isArray(data.repos)) {
@@ -136,7 +137,7 @@ function Topbar({ user, companyName, logout, currentPage, onToggleNav, navOpen, 
   const fetchSprints = () => {
     if (!compName || !selectedBoard) return;
 
-    fetch(`http://127.0.0.1:8000/jira/sprints/${compName}?board_id=${selectedBoard}`)
+    fetch(`${API_BASE_URL}/jira/sprints/${compName}?board_id=${selectedBoard}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data?.sprints?.length > 0) {
@@ -163,7 +164,7 @@ function Topbar({ user, companyName, logout, currentPage, onToggleNav, navOpen, 
   const fetchReleases = () => {
     if (!compName || !selectedBoard) return;
 
-    fetch(`http://127.0.0.1:8000/jira/releases/${compName}?project_id=${selectedBoard}`)
+    fetch(`${API_BASE_URL}/jira/releases/${compName}?project_id=${selectedBoard}`)
       .then((res) => res.ok && res.json())
       .then((data) => {
         if (data?.releases?.length > 0) {
@@ -285,7 +286,7 @@ function Topbar({ user, companyName, logout, currentPage, onToggleNav, navOpen, 
     const toastId = toast.loading("Syncing workspace data...");
     try {
       const response = await fetch(
-        `http://127.0.0.1:8000/jira/sync-all/${compName}`,
+        `${API_BASE_URL}/jira/sync-all/${compName}`,
         { method: "POST" }
       );
       if (response.ok) {

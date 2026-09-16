@@ -2,6 +2,7 @@ import { Brand } from "../components/ui/ProductUI";
 import { useState } from "react";
 import axios from "axios";
 import { Loader2, ArrowRight, Kanban, GitBranch, ChartNoAxesCombined } from "lucide-react";
+import { API_BASE_URL } from "../utils/api";
 
 function OrganizationPage({ onOrganizationCreated, onDevBypass }) {
   const [companyName, setCompanyName] = useState("");
@@ -12,7 +13,7 @@ function OrganizationPage({ onOrganizationCreated, onDevBypass }) {
     setLoading(true);
 
     try {
-      const response = await axios.post("http://localhost:8000/companies", {
+      const response = await axios.post(`${API_BASE_URL}/companies`, {
         companyName,
       });
 

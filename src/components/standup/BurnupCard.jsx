@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../utils/api";
 import { EmptyState } from "../ui/ProductUI";
 import React, { useState, useEffect, useCallback } from "react";
 import DashboardCard from "./DashboardCard";
@@ -25,7 +26,7 @@ function BurnupCard({ currentSprint, currentProject }) {
     if (targetProject) params.append("project_id", targetProject);
     params.append("_t", String(Date.now()));
 
-    const url = `http://127.0.0.1:8000/jira/burnup/${companyName}?${params.toString()}`;
+    const url = `${API_BASE_URL}/jira/burnup/${companyName}?${params.toString()}`;
 
     setLoading(true);
     fetch(url, { cache: "no-store", signal })

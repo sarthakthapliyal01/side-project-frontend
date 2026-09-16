@@ -1,3 +1,4 @@
+import { API_BASE_URL } from "../../utils/api";
 import React, { useState, useEffect, useCallback } from "react";
 import { AlertTriangle } from "lucide-react";
 import DashboardCard from "./DashboardCard";
@@ -36,10 +37,10 @@ function CapacityCard({ currentSprint, currentProject, currentRelease, isRelease
     params.append("_t", String(Date.now()));
 
     Promise.all([
-      fetch(`http://127.0.0.1:8000/jira/sprint-issues/${companyName}?${params.toString()}`, { signal })
+      fetch(`${API_BASE_URL}/jira/sprint-issues/${companyName}?${params.toString()}`, { signal })
         .then(r => r.ok ? r.json() : null)
         .catch(err => err.name === "AbortError" ? Promise.reject(err) : null),
-      fetch(`http://127.0.0.1:8000/jira/capacity-data/${companyName}?${params.toString()}`, { signal })
+      fetch(`${API_BASE_URL}/jira/capacity-data/${companyName}?${params.toString()}`, { signal })
         .then(r => r.ok ? r.json() : null)
         .catch(err => err.name === "AbortError" ? Promise.reject(err) : null)
     ]).then(([issuesRes, capacityRes]) => {
